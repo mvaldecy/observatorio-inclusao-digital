@@ -17,6 +17,7 @@ utilizando bases de dados como as do CETIC.br.
 ### Como navegar:
 Utilize o menu lateral para acessar os dashboards específicos:
 - **Cetic Domicílios**: Análise de acesso à internet e tecnologia nos domicílios brasileiros.
+- **Cetic Indivíduos**: Análise do comportamento e acesso à internet por indivíduos.
 
 ---
 *Desenvolvido para análise de microdados da TIC Domicílios.*

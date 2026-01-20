@@ -87,6 +87,25 @@ class AnalisadorDomiciliosCETIC:
         if df.empty:
             return None
 
+        if isinstance(indicador, list):
+            # Análise múltipla
+            resumo = []
+            for ind in indicador:
+                meta_col = getattr(Metadados, ind, None)
+                label_col = getattr(meta_col, '_label', ind) if meta_col else ind
+                
+                sim_count = (df[ind] == 1.0).sum()
+                total = len(df)
+                percent = (sim_count / total) * 100 if total > 0 else 0
+                
+                resumo.append({
+                    'Indicador': ind,
+                    'Descrição': label_col,
+                    'Total': sim_count,
+                    'Percentual': f"{percent:.2f}%"
+                })
+            return pd.DataFrame(resumo)
+
         if indicador not in df.columns:
             print(f"Erro: Indicador '{indicador}' não encontrado.")
             return None
@@ -100,13 +119,9 @@ class AnalisadorDomiciliosCETIC:
         label_col = getattr(meta_col, '_label', indicador) if meta_col else indicador
         labels_valores = getattr(meta_col, '_map', {}) if meta_col else {}
         
-        # print(f"\nAnalizando Indicador: {indicador} - {label_col}")
-        
         resumo = []
         for val, count in counts.items():
-            # Tenta encontrar a label no mapeamento
             label = labels_valores.get(val, "Não categorizado")
-            
             percent = (count / total) * 100 if total > 0 else 0
             resumo.append({
                 'Código': val,

@@ -8,6 +8,7 @@ if root_path not in sys.path:
     sys.path.append(root_path)
 
 from cetic.domicilios.analisador_domicilios_cetic import AnalisadorDomiciliosCETIC
+from cetic.individuos.analisador_individuos_cetic import AnalisadorIndividuosCETIC
 
 @st.cache_resource
 def get_analisador_domicilios():
@@ -16,3 +17,11 @@ def get_analisador_domicilios():
     O uso de st.cache_resource garante que o arquivo parquet seja carregado apenas uma vez.
     """
     return AnalisadorDomiciliosCETIC()
+
+@st.cache_resource
+def get_analisador_individuos():
+    """
+    Retorna uma instância única do AnalisadorIndividuosCETIC.
+    O uso de st.cache_resource garante que o arquivo .sav seja carregado apenas uma vez.
+    """
+    return AnalisadorIndividuosCETIC()
