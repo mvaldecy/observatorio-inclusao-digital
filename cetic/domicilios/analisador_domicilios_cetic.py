@@ -11,17 +11,39 @@ class AnalisadorDomiciliosCETIC:
         base_path = os.path.dirname(__file__)
         
         if data_path is None:
-            data_path = os.path.join(base_path, 'tic_domicilios_2025_domicilios_base_de_microdados_v1.0.sav')
+            data_path = os.path.join(base_path, 'tic_domicilios_2025_domicilios_base_de_microdados_v1.0.parquet')
         
         print(f"Carregando dados de: {data_path}...")
         try:
             # Usando pyreadstat para ler o arquivo .sav diretamente em um DataFrame pandas
-            self.df, self.meta = pyreadstat.read_sav(data_path)
+            self.df = pd.read_parquet(data_path)
+            self.meta = None
+
             print(f"Base carregada com {len(self.df)} registros e {len(self.df.columns)} colunas.")
         except Exception as e:
             print(f"Erro ao carregar arquivo .sav: {e}")
             self.df = pd.DataFrame()
             self.meta = None
+
+    def renomear_colunas_com_labels(self):
+        """
+        Renomeia as colunas do DataFrame substituindo os códigos pelas labels dos metadados.
+        """
+        rename_dict = {}
+
+        # Percorre todos os atributos da classe Metadados
+        for attr_name in dir(Metadados):
+            if not attr_name.startswith('_'):  # Ignora atributos privados
+                meta_attr = getattr(Metadados, attr_name, None)
+                if meta_attr and hasattr(meta_attr, '_label'):
+                    # Se a coluna existe no DataFrame, adiciona ao dicionário de rename
+                    if attr_name in self.df.columns:
+                        rename_dict[attr_name] = meta_attr._label
+
+        # Renomeia as colunas
+        self.df.rename(columns=rename_dict, inplace=True)
+        print(f"{len(rename_dict)} colunas renomeadas com suas labels.")
+        return self.df
 
     def filtrar_dados(self, *args, **kwargs):
         """
@@ -62,6 +84,9 @@ class AnalisadorDomiciliosCETIC:
         """
         df = df_contexto if df_contexto is not None else self.df
         
+        if df.empty:
+            return None
+
         if indicador not in df.columns:
             print(f"Erro: Indicador '{indicador}' não encontrado.")
             return None
@@ -120,4 +145,6 @@ if __name__ == "__main__":
         Metadados.AREA.RURAL,
 
     )
+
+    print(app.df.columns.tolist())
     print(resultado)
