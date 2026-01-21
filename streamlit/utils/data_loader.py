@@ -25,3 +25,5 @@ def get_analisador_individuos():
     O uso de st.cache_resource garante que o arquivo .sav seja carregado apenas uma vez.
     """
     return AnalisadorIndividuosCETIC()
+
+

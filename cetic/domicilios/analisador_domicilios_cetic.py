@@ -124,7 +124,6 @@ class AnalisadorDomiciliosCETIC:
             label = labels_valores.get(val, "Não categorizado")
             percent = (count / total) * 100 if total > 0 else 0
             resumo.append({
-                'Código': val,
                 'Descrição': label,
                 'Total': count,
                 'Percentual': f"{percent:.2f}%"
@@ -158,6 +157,7 @@ if __name__ == "__main__":
     resultado = app.analisar_inclusao_digital(
         Metadados.COD_UF.PIAUI,
         Metadados.AREA.RURAL,
+        Metadados.GRAU_INSTRUCAO.FUNDAMENTAL_COMPLETO_MEDIO_INCOMPLETO
 
     )
 

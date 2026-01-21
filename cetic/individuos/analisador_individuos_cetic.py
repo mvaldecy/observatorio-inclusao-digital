@@ -97,6 +97,24 @@ class AnalisadorIndividuosCETIC:
             
         return pd.DataFrame(resumo)
 
+    def analisar_com_internet(self, indicador, df_contexto=None):
+        """
+        Analisa um indicador mostrando também a distribuição de uso da Internet (C1).
+        Retorna dois DataFrames: (resultado_indicador, resultado_internet)
+        """
+        df = df_contexto if df_contexto is not None else self.df
+
+        if df.empty:
+            return None, None
+
+        # Analisa o indicador principal
+        resultado_indicador = self.analisar_indicador(indicador, df_contexto=df)
+
+        # Analisa o uso da Internet (C1)
+        resultado_internet = self.analisar_indicador('C1', df_contexto=df)
+
+        return resultado_indicador, resultado_internet
+
     def analisar_uso_internet(self, *args, **kwargs):
         """
         Analisa o indicador C1 (Indivíduos que já acessaram a Internet).
