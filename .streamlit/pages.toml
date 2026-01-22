@@ -1,0 +1,12 @@
+[[pages]]
+path = "Home.py"
+name = "🏠 Home"
+
+[[pages]]
+path = "pages/1_Cetic_Domicilios.py"
+name = "📊 Cetic Domicílios"
+
+[[pages]]
+path = "pages/2_Cetic_Individuos.py"
+name = "👥 Cetic Indivíduos"
+
