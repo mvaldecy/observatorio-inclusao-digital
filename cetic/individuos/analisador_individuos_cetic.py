@@ -7,20 +7,51 @@ except ImportError:
     from metadados_individuos import MetadadosIndividuos
 
 class AnalisadorIndividuosCETIC:
-    def __init__(self, data_path=None):
+    def __init__(self, data_path=None, ano: int = 2025, df=None, meta=None):
+        """
+        Inicializa o analisador de indivíduos CETIC
+
+        Args:
+            data_path: Caminho para arquivo local (opcional)
+            ano: Ano da pesquisa (default: 2025)
+            df: DataFrame já carregado (opcional, usado pelo data_loader)
+            meta: Metadados já carregados (opcional)
+        """
+        self.ano = ano
         base_path = os.path.dirname(__file__)
         
-        if data_path is None:
+        # Se df foi passado, usa ele (evita importação circular)
+        if df is not None:
+            self.df = df
+            self.meta = meta
+            print(f"Analisador inicializado com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
+        elif data_path is None:
+            # Fallback para arquivo local padrão
             data_path = os.path.join(base_path, 'tic_domicilios_2025_individuos_base_de_microdados_v1.0.sav')
-        
-        print(f"Carregando dados de: {data_path}...")
-        try:
-            self.df, self.meta = pyreadstat.read_sav(data_path)
-            print(f"Base carregada com {len(self.df)} registros e {len(self.df.columns)} colunas.")
-        except Exception as e:
-            print(f"Erro ao carregar arquivo .sav: {e}")
-            self.df = pd.DataFrame()
-            self.meta = None
+            print(f"⚠️ Carregando de arquivo local: {data_path}")
+            try:
+                self.df, self.meta = pyreadstat.read_sav(data_path)
+                print(f"Base carregada com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
+            except Exception as e:
+                print(f"❌ Erro ao carregar arquivo local: {e}")
+                self.df = pd.DataFrame()
+                self.meta = None
+                raise ValueError(f"Não foi possível carregar dados. Use get_analisador_individuos(ano) do data_loader.")
+        else:
+            # Carrega de arquivo local especificado
+            print(f"Carregando dados de: {data_path}...")
+            try:
+                if data_path.endswith('.sav'):
+                    self.df, self.meta = pyreadstat.read_sav(data_path)
+                else:
+                    raise ValueError(f"Formato não suportado: {data_path}")
+
+                print(f"Base carregada com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
+            except Exception as e:
+                print(f"Erro ao carregar arquivo: {e}")
+                self.df = pd.DataFrame()
+                self.meta = None
+                raise
 
     def filtrar_dados(self, *args, **kwargs):
         """

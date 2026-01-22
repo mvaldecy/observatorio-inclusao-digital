@@ -11,208 +11,75 @@ for p in [root_path, streamlit_path]:
         sys.path.append(p)
 
 from utils.data_loader import get_analisador_individuos
+from utils.http_loader import HTTPDataLoader
 from cetic.individuos.metadados_individuos import MetadadosIndividuos
+from components.categorias_cetic import CATEGORIAS_INDIVIDUOS
 
 st.set_page_config(page_title="Cetic Indivíduos", layout="wide")
 
-st.title("📊 CETIC - TIC Indivíduos")
+# Configurações de Ano e Cache no Sidebar (antes dos filtros)
+st.sidebar.title("⚙️ Configurações")
 
-# Categorias de indicadores - TODOS os indicadores disponíveis
-CATEGORIAS = {
-    "🌐 Acesso e Uso Básico": {
-        'C1': 'Já usou a Internet?',
-        'C3': 'Última vez que usou Internet',
-        'C3J3': 'Usuário de internet (ampliado)',
-        'C4': 'Frequência de uso da Internet',
-        'C1_COB_A': 'Já enviou/recebeu e-mails?',
-        'C1_COB_B': 'Já mandou mensagens por WhatsApp/Telegram?',
-        'C1_COB_C1': 'Já usou redes sociais (Facebook/TikTok)?',
-        'C1_COB_D': 'Já buscou informações (Google/Bing)?',
-    },
-    "🚫 Barreiras de Acesso": {
-        'C2_D': 'Não tem onde acessar',
-        'C2_E': 'Muito caro',
-        'C2_F': 'Preocupações com segurança/privacidade',
-        'C2_G': 'Evitar conteúdo perigoso',
-        'C2_I': 'Falta de interesse/necessidade',
-        'C2_J': 'Não sabe usar',
-        'C2_OUTRO': 'Outro motivo',
-        'C2A': 'Principal motivo para não usar',
-    },
-    "💻 Dispositivos Utilizados": {
-        'C5_A': 'Computador de mesa',
-        'C5_B': 'Notebook',
-        'C5_C': 'Tablet',
-        'C5_D': 'Telefone celular',
-        'C5_E': 'Videogame',
-        'C5_F': 'Televisão',
-        'C5_OUTRO': 'Outro aparelho',
-        'C5_DISPOSITIVOS': 'Celular e computador (exclusivo/simultâneo)',
-        'DISPOSITIVOS_TODOS': ['C5_A', 'C5_B', 'C5_C', 'C5_D', 'C5_E', 'C5_F'],
-    },
-    "📍 Locais de Acesso": {
-        'C6_A': 'Em casa',
-        'C6_B': 'No trabalho',
-        'C6_C': 'Na escola/ensino',
-        'C6_D': 'Casa de outra pessoa',
-        'C6_E': 'Centro público gratuito',
-        'C6_F': 'Centro público pago (lanhouse)',
-        'C6_G': 'Deslocando-se (rua/ônibus/metrô)',
-        'C6A': 'Local mais frequente',
-        'LOCAIS_TODOS': ['C6_A', 'C6_B', 'C6_C', 'C6_D', 'C6_E', 'C6_F', 'C6_G'],
-    },
-    "💬 Comunicação": {
-        'C7_A': 'E-mail',
-        'C7_B': 'Mensagens instantâneas (WhatsApp/Skype)',
-        'C7_C': 'Voz/vídeo (Skype/WhatsApp)',
-        'C7_D1': 'Redes sociais (Facebook/Instagram/TikTok)',
-        'C7_E': 'Listas de discussão/fóruns',
-        'C7_F': 'Microblog (X/Twitter)',
-    },
-    "🔍 Busca de Informações": {
-        'C8_A': 'Produtos e serviços',
-        'C8_B': 'Saúde',
-        'C8_C': 'Viagens e acomodações',
-        'C8_D': 'Emprego/enviar currículos',
-        'C8_E': 'Wikipédia',
-        'C8_F': 'Sites de governo',
-        'C8_G': 'Serviços públicos online',
-        'C8_H': 'Transações financeiras',
-        'C8_I': 'Pagamento/transferência Pix',
-    },
-    "🎬 Entretenimento": {
-        'C9_A': 'Jogos online',
-        'C9_B': 'Ouvir música (Spotify/Deezer/YouTube)',
-        'C9_C': 'Vídeos/filmes/séries (YouTube/Netflix)',
-        'C9_D': 'Jornais/revistas/notícias',
-        'C9_E': 'Transmissões ao vivo/lives',
-        'C9_F': 'Exposições e museus',
-        'C9_G': 'Podcasts',
-    },
-    "📚 Educação e Trabalho": {
-        'C10_A': 'Atividades/pesquisas escolares',
-        'C10_B': 'Cursos à distância',
-        'C10_C': 'Informações sobre cursos superiores',
-        'C10_D': 'Estudar por conta própria',
-        'C10_E': 'Armazenamento na nuvem (Dropbox/Drive)',
-        'C10_F': 'Atividades de trabalho',
-    },
-    "🎨 Criação de Conteúdo": {
-        'C11_A': 'Compartilhar conteúdo (textos/imagens/vídeos)',
-        'C11_B': 'Criar/atualizar blogs/websites',
-        'C11_C': 'Postar conteúdo próprio',
-        'TC10_A': 'Postou textos que criou',
-        'TC10_B': 'Postou imagens/fotos que criou',
-        'TC10_C': 'Postou vídeos que criou',
-        'TC10_D': 'Postou músicas que criou',
-    },
-    "🤖 Inteligência Artificial": {
-        'C13A': 'Usou IA (ChatGPT/Copilot/Gemini)',
-        'C13B_A': 'IA para trabalho profissional',
-        'C13B_B': 'IA para pesquisa escolar',
-        'C13B_C': 'IA para uso pessoal',
-        'C13C_A': 'Não usou: falta de interesse',
-        'C13C_B': 'Não usou: não conhecia',
-        'C13C_C': 'Não usou: falta de habilidade',
-        'C13C_D': 'Não usou: preocupações segurança',
-    },
-    "🎰 Apostas Online": {
-        'C14_A': 'Loteria federal (Mega Sena/Lotofácil)',
-        'C14_B': 'Cassino online (jogo do tigrinho)',
-        'C14_C': 'Apostas esportivas (Bet365/Betano)',
-        'C14_D': 'Rifas digitais/sorteios',
-    },
-    "🏛️ Governo Eletrônico": {
-        'G1_A': 'Documentos pessoais (RG/CPF)',
-        'G1_B': 'Saúde pública',
-        'G1_C': 'Educação pública (ENEM/PROUNI)',
-        'G1_D': 'INSS/FGTS/previdência',
-        'G1_E': 'Impostos (IR/IPVA/IPTU)',
-        'G1_F': 'Polícia e segurança',
-        'G1_G': 'Transporte público',
-        'G1_H': 'Justiça (processos/defensoria)',
-        'G5_A': 'Acessou Gov.br para si',
-        'G5_B': 'Acessou Gov.br para outra pessoa',
-    },
-    "🛒 Comércio Eletrônico": {
-        'H2': 'Comprou/encomendou produtos online (12 meses)',
-    },
-    "💡 Habilidades Digitais": {
-        'I1A_A': 'Copiar/mover arquivos',
-        'I1A_B': 'Copiar e colar conteúdo',
-        'I1A_C': 'Anexar documentos/imagens',
-        'I1A_D': 'Usar fórmulas em planilhas',
-        'I1A_E': 'Conectar/instalar equipamentos',
-        'I1A_F': 'Instalar programas/aplicativos',
-        'I1A_G': 'Criar apresentações',
-        'I1A_H': 'Transferir arquivos entre dispositivos',
-        'I1A_I': 'Programar (criar app/programa)',
-        'I1A_J': 'Medidas de segurança (senhas fortes)',
-        'I1A_K': 'Configurações de privacidade',
-        'I1A_L': 'Verificar veracidade de informações',
-        'HABILIDADES_BASICAS': ['I1A_A', 'I1A_B', 'I1A_C', 'I1A_F'],
-        'HABILIDADES_AVANCADAS': ['I1A_D', 'I1A_G', 'I1A_I'],
-        'HABILIDADES_SEGURANCA': ['I1A_J', 'I1A_K', 'I1A_L'],
-    },
-    "📱 Telefone Celular - Uso": {
-        'J1': 'Usou telefone celular (3 meses)',
-        'J5': 'Possui telefone celular',
-        'J6': 'Tipo: pré ou pós-pago',
-        'J2_A': 'Chamadas telefônicas',
-        'J2_B': 'SMS',
-        'J2_H1': 'E-mails',
-        'J2_I1': 'Redes sociais',
-        'J2_N': 'Mensagens pela Internet (WhatsApp)',
-        'J2_L': 'Buscar informações (Google)',
-    },
-    "📱 Telefone Celular - Internet": {
-        'J3': 'Usou Internet pelo celular',
-        'J3A_A': 'Conexão 3G/4G/5G',
-        'J3A_B': 'Conexão WiFi',
-        'J7': 'Pacote de dados acabou',
-        'J8A': 'O que fez quando pacote acabou',
-        'J8B_C': 'Velocidade reduzida',
-        'J8B_D': 'Comprou créditos/pacote adicional',
-    },
-    "🎵 Consumo Cultural - Música": {
-        'TC2B_A': 'YouTube/Vimeo',
-        'TC2B_B': 'Spotify/Deezer (assinatura)',
-        'TC2B_C': 'iTunes (compra)',
-        'TC2B_E': 'Rádio online',
-        'TC3_A': 'Músicas estrangeiras',
-        'TC3_B': 'Músicas brasileiras',
-    },
-    "🎬 Consumo Cultural - Vídeos": {
-        'TC4_A': 'Filmes',
-        'TC4_B': 'Séries',
-        'TC4_C': 'Programas de TV',
-        'TC4B_A': 'Vídeos de notícias',
-        'TC4B_H': 'Tutoriais/videoaulas',
-        'TC4B_I': 'Influenciadores/youtubers',
-        'TC4C_A': 'YouTube/Vimeo',
-        'TC4C_D1': 'Netflix/Disney+/streaming',
-        'TC7_A': 'Filmes estrangeiros',
-        'TC7_B': 'Filmes brasileiros',
-    },
-    "👥 Perfil Demográfico": {
-        'SEXO': 'Sexo',
-        'IDADE': 'Idade',
-        'FAIXA_ETARIA': 'Faixa etária',
-        'RACA': 'Cor/raça',
-        'ESTUD': 'Frequenta escola/universidade',
-        'GRAU_INST_1': 'Grau de instrução',
-        'RENDA_PESSOAL': 'Renda pessoal',
-        'RENDA_FAMILIAR_2': 'Renda familiar',
-        'CLASSE_2015': 'Classe social',
-        'PEA': 'Condição de atividade',
-        'COD_UF': 'UF',
-        'COD_REGIAO_2': 'Região',
-    },
-}
+# Seletor de ano
+loader = HTTPDataLoader()
+anos_disponiveis = loader.get_anos_disponiveis('individuos')
+
+ano_selecionado = st.sidebar.selectbox(
+    "📅 Ano da Pesquisa",
+    options=anos_disponiveis,
+    index=0,  # Usa 2024 como padrão (primeiro da lista, já que 2025 indivíduos ainda não disponível)
+    help="Selecione o ano da pesquisa TIC Indivíduos",
+)
+
+# Botões de gerenciamento de cache
+col_btn1, col_btn2 = st.sidebar.columns(2)
+
+with col_btn1:
+    if st.button("🔄 Atualizar", help="Baixar nova versão dos dados", use_container_width=True):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        loader.carregar_dados(ano_selecionado, 'individuos', force_download=True)
+        st.rerun()
+
+with col_btn2:
+    if st.button("🗑️ Limpar Cache", help="Remover dados em cache", use_container_width=True):
+        loader.limpar_cache(ano_selecionado)
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
+
+# Info sobre cache
+with st.sidebar.expander("💾 Informações do Cache", expanded=False):
+    cache_info = loader.info_cache()
+
+    if cache_info:
+        for ano, arquivos in cache_info.items():
+            st.markdown(f"**{ano}:**")
+            for tipo, info in arquivos.items():
+                icone = "✅" if info['existe'] else "❌"
+                st.markdown(f"  {icone} **{tipo}**: {info['tamanho_mb']} MB")
+    else:
+        st.info("📂 Nenhum arquivo em cache")
+
+st.sidebar.markdown("---")
+
+# Carrega analisador (com cache por ano)
+try:
+    analisador = get_analisador_individuos(ano=ano_selecionado)
+except Exception as e:
+    st.error(f"❌ Erro ao carregar dados de {ano_selecionado}: {str(e)}")
+    st.info("💡 **Dica:** Verifique sua conexão com a internet ou tente limpar o cache.")
+    st.stop()
+
+st.title(f"📊 CETIC - TIC Indivíduos {ano_selecionado}")
+
+# Usa categorias importadas do arquivo centralizado
+CATEGORIAS = CATEGORIAS_INDIVIDUOS
 
 # Contar indicadores
 total_indicadores = sum(1 for cat in CATEGORIAS.values() for k, v in cat.items() if isinstance(v, str))
 total_comparativos = sum(1 for cat in CATEGORIAS.values() for k, v in cat.items() if isinstance(v, list))
+
 
 st.markdown(f"""
 ### Selecione um Indicador para Análise
@@ -267,8 +134,6 @@ else:
 
 st.subheader(label_indicador)
 
-# Carrega o analisador
-analisador = get_analisador_individuos()
 
 # Sidebar - Filtros
 st.sidebar.header("Filtros")
@@ -347,43 +212,138 @@ if f_faixa: filtros.append(f_faixa)
 # Executar análise
 # Criamos uma cópia do dataframe para não afetar o original no analisador (que é cacheado)
 df_filtrado = analisador.df.copy()
+total_original = len(df_filtrado)
 
 # Aplicar os filtros
 for f in filtros:
     col = f.column
     df_filtrado = df_filtrado[df_filtrado[col] == f]
 
-st.info(f"Registros encontrados: {len(df_filtrado):,}")
+# Mostrar informações de filtros de forma mais visual
+filtros_ativos = []
+if len(filtros) > 0:
+    for f in filtros:
+        col = f.column
+        meta_class = getattr(MetadadosIndividuos, col, None)
+        if meta_class and hasattr(meta_class, '_map'):
+            label = meta_class._map.get(float(f), str(f))
+            col_name = getattr(meta_class, '_label', col)
+            filtros_ativos.append(f"**{col_name}:** {label}")
+
+# Layout melhorado com métricas
+col_info1, col_info2, col_info3 = st.columns(3)
+
+with col_info1:
+    st.metric("📊 Registros", f"{len(df_filtrado):,}")
+
+with col_info2:
+    if len(filtros) > 0:
+        st.metric("🔍 Filtros Ativos", len(filtros))
+    else:
+        st.metric("🔍 Filtros Ativos", "Nenhum")
+
+with col_info3:
+    percentual = (len(df_filtrado) / total_original * 100) if total_original > 0 else 0
+    st.metric("📈 % da Base", f"{percentual:.1f}%")
+
+# Mostrar filtros ativos em expander
+if filtros_ativos:
+    with st.expander("🔎 Detalhes dos Filtros Ativos", expanded=False):
+        for filtro in filtros_ativos:
+            st.markdown(f"- {filtro}")
 
 # Análise do Indicador Selecionado
 if len(df_filtrado) > 0:
     res = analisador.analisar_indicador(actual_indicador, df_contexto=df_filtrado)
-    
+
     if res is not None:
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            st.write("### Tabela de Resultados")
-            st.dataframe(res, use_container_width=True)
-            
-        with col2:
-            st.write("### Visualização")
+        # Usar tabs para organizar melhor
+        tab1, tab2, tab3 = st.tabs(["📊 Resumo", "📈 Gráficos", "📥 Dados"])
+
+        with tab1:
+            # Resumo com KPIs principais
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                if not is_multiple:
+                    sim_row = res[res['Descrição'] == 'Sim']
+                    if not sim_row.empty:
+                        st.metric("✅ Sim", sim_row['Percentual'].values[0],
+                                 help="Percentual de indivíduos que responderam 'Sim'")
+                else:
+                    chart_data = res.copy()
+                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
+                    st.metric("🏆 Maior", f"{top_row['Indicador']}: {top_row['Percentual']}")
+
+            with col2:
+                if not is_multiple:
+                    nao_row = res[res['Descrição'] == 'Não']
+                    if not nao_row.empty:
+                        st.metric("❌ Não", nao_row['Percentual'].values[0],
+                                 help="Percentual de indivíduos que responderam 'Não'")
+
+            with col3:
+                st.metric("📋 Total de Categorias", len(res),
+                         help="Número de categorias de resposta")
+
+            st.markdown("---")
+
+            # Tabela formatada
+            st.write("### 📊 Tabela Detalhada")
+            st.dataframe(res, use_container_width=True, height=300)
+
+        with tab2:
+            # Gráficos melhorados
             chart_data = res.copy()
             chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
-            
-            # Gráfico de barras
-            st.bar_chart(chart_data, x="Descrição", y="Percentual_Num")
-            
-            # KPI (Apenas se tiver 'Sim')
-            if not is_multiple:
-                sim_row = res[res['Descrição'] == 'Sim']
-                if not sim_row.empty:
-                    st.metric(f"{selected_indicador_key} (Sim)", sim_row['Percentual'].values[0])
-            else:
-                top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
-                st.metric(f"Maior: {top_row['Indicador']}", top_row['Percentual'])
+
+            col_g1, col_g2 = st.columns(2)
+
+            with col_g1:
+                st.write("### 📊 Gráfico de Barras")
+                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=400)
+
+            with col_g2:
+                st.write("### 🥧 Distribuição")
+                # Criar visualização alternativa
+                top_5 = chart_data.nlargest(5, 'Percentual_Num')
+                for idx, row in top_5.iterrows():
+                    st.progress(row['Percentual_Num'] / 100,
+                              text=f"{row['Descrição']}: {row['Percentual']}")
+
+        with tab3:
+            # Download dos dados
+            st.write("### 📥 Exportar Dados")
+
+            col_d1, col_d2 = st.columns(2)
+
+            with col_d1:
+                # Preparar dados para download
+                csv = res.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Download CSV",
+                    data=csv,
+                    file_name=f"cetic_individuos_{selected_indicador_key}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    help="Baixar dados em formato CSV"
+                )
+
+            with col_d2:
+                # Mostrar informações sobre os dados
+                st.info(f"""
+                **Informações do Dataset:**
+                - Indicador: {selected_indicador_key}
+                - Registros: {len(df_filtrado):,}
+                - Categorias: {len(res)}
+                - Data: {pd.Timestamp.now().strftime('%d/%m/%Y')}
+                """)
+
+            st.write("### 📋 Pré-visualização dos Dados")
+            st.dataframe(res, use_container_width=True)
 else:
-    st.warning("Nenhum dado encontrado para os filtros selecionados.")
+    st.warning("⚠️ Nenhum dado encontrado para os filtros selecionados.")
+    st.info("💡 **Dica:** Tente remover alguns filtros ou selecionar uma combinação diferente.")
 
 st.markdown("---")
-st.caption("Fonte: Microdados da TIC Domicílios 2025 (CETIC.br)")
+st.caption(f"Fonte: Microdados da TIC Indivíduos {ano_selecionado} (CETIC.br)")

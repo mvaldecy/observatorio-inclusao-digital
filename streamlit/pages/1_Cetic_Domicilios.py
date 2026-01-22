@@ -11,93 +11,73 @@ for p in [root_path, streamlit_path]:
         sys.path.append(p)
 
 from utils.data_loader import get_analisador_domicilios
+from utils.http_loader import HTTPDataLoader
 from cetic.domicilios.metadados import Metadados
+from components.categorias_cetic import CATEGORIAS_DOMICILIO
 
 st.set_page_config(page_title="Cetic Domicílios", layout="wide")
 
-st.title("📊 CETIC - TIC Domicílios")
+# Configurações de Ano e Cache no Sidebar (antes dos filtros)
+st.sidebar.title("⚙️ Configurações")
 
-# Categorias de indicadores - TODOS os indicadores disponíveis
-CATEGORIAS = {
-    "📊 Acesso e Conectividade": {
-        'A4': 'Acesso à Internet',
-        'A4_COB': 'Acesso à Internet (ampliado)',
-        'A7D': 'Algum morador tem acesso à Internet',
-        'A1A4': 'Presença de computador e Internet',
-    },
-    "💻 Equipamentos - Disponibilidade": {
-        'A1_A': 'Possui Computador de mesa',
-        'A1_B': 'Possui Notebook',
-        'A1_C': 'Possui Tablet',
-        'A1_AGREG': 'Possui algum tipo de computador',
-        'A1_EXCLUSIVOS': 'Tipo de computador (exclusivo/simultâneo)',
-        'DIC_CEL': 'Equipamentos TIC no domicílio',
-        'EQUIPAMENTOS_COMPUTADOR': ['A1_A', 'A1_B', 'A1_C'],
-    },
-    "🔢 Equipamentos - Quantidade": {
-        'A2_QTD_DESK': 'Quantidade de computadores de mesa',
-        'A2_QTD_NOTE': 'Quantidade de notebooks',
-        'A2_QTD_TAB': 'Quantidade de tablets',
-        'A2_A_FAIXA': 'Faixa de quantidade - Computador de mesa',
-        'A2_B_FAIXA': 'Faixa de quantidade - Notebook',
-        'A2_C_FAIXA': 'Faixa de quantidade - Tablet',
-    },
-    "🌐 Tipo de Conexão": {
-        'A7': 'Principal tipo de conexão',
-        'A7A': 'Possui WiFi',
-        'A7B': 'Internet compartilhada com vizinho',
-        'A7C': 'Meio de acesso à rede móvel (3G/4G/5G)',
-        'A7_AGREG': 'Tipo de conexão (agregado)',
-    },
-    "⚡ Velocidade e Custo": {
-        'A8A': 'Velocidade da Internet contratada',
-        'A9A': 'Valor pago pela Internet',
-        'A9B': 'Valor inclui pacote/combo',
-        'A9C': 'Sabe o valor apenas da Internet',
-        'A9D': 'Valor pago apenas pela Internet',
-        'A9_FAIXA': 'Faixa de valor pago pela conexão',
-    },
-    "🚫 Barreiras - Individual": {
-        'A5_A': 'Falta de computador',
-        'A5_B': 'Falta de necessidade',
-        'A5_C': 'Falta de interesse',
-        'A5_D': 'Acesso em outro lugar',
-        'A5_E': 'Muito caro',
-        'A5_F': 'Não sabem usar',
-        'A5_G': 'Falta de disponibilidade na região',
-        'A5_H': 'Preocupações com segurança/privacidade',
-        'A5_I': 'Evitam conteúdo perigoso',
-        'A5_OUTRO': 'Outro motivo',
-    },
-    "🎯 Barreiras - Análise": {
-        'A5A': 'Principal motivo de falta de Internet',
-        'A5_NENHUM': 'Motivos para falta de Internet',
-        'BARREIRAS_PRINCIPAIS': ['A5_A', 'A5_B', 'A5_C', 'A5_E', 'A5_F'],
-        'BARREIRAS_TODAS': ['A5_A', 'A5_B', 'A5_C', 'A5_D', 'A5_E', 'A5_F', 'A5_G', 'A5_H', 'A5_I'],
-    },
-    "🏠 Características do Domicílio": {
-        'TV_ASSINATURA': 'Possui TV por assinatura',
-        'ANTENA_PARABOLICA': 'Possui antena parabólica',
-        'RUA': 'Tipo de pavimentação da rua',
-    },
-    "👥 Perfil Socioeconômico": {
-        'RENDA_FAMILIAR': 'Renda familiar',
-        'RENDA_FAMILIAR_2': 'Renda familiar (v2)',
-        'CLASSE_2015': 'Classe social',
-        'GRAU_INSTRUCAO': 'Escolaridade do responsável',
-        'PNADC_RD_A': 'Recebe BPC-LOAS',
-        'PNADC_RD_B': 'Recebe Bolsa Família/Auxílio Brasil',
-    },
-    "📍 Localização": {
-        'COD_UF': 'UF',
-        'COD_REGIAO_2': 'Região',
-        'AREA': 'Área (Urbana/Rural)',
-    },
-}
+# Seletor de ano
+loader = HTTPDataLoader()
+anos_disponiveis = loader.get_anos_disponiveis('domicilios')
+
+ano_selecionado = st.sidebar.selectbox(
+    "📅 Ano da Pesquisa",
+    options=anos_disponiveis,
+    index=0,
+    help="Selecione o ano da pesquisa TIC Domicílios"
+)
+
+# Botões de gerenciamento de cache
+col_btn1, col_btn2 = st.sidebar.columns(2)
+
+with col_btn1:
+    if st.button("🔄 Atualizar", help="Baixar nova versão dos dados", use_container_width=True):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        loader.carregar_dados(ano_selecionado, 'domicilios', force_download=True)
+        st.rerun()
+
+with col_btn2:
+    if st.button("🗑️ Limpar Cache", help="Remover dados em cache", use_container_width=True):
+        loader.limpar_cache(ano_selecionado)
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
+
+# Info sobre cache
+with st.sidebar.expander("💾 Informações do Cache", expanded=False):
+    cache_info = loader.info_cache()
+
+    if cache_info:
+        for ano, arquivos in cache_info.items():
+            st.markdown(f"**{ano}:**")
+            for tipo, info in arquivos.items():
+                icone = "✅" if info['existe'] else "❌"
+                st.markdown(f"  {icone} **{tipo}**: {info['tamanho_mb']} MB")
+    else:
+        st.info("📂 Nenhum arquivo em cache")
+
+st.sidebar.markdown("---")
+
+# Carrega analisador (com cache por ano)
+try:
+    analisador = get_analisador_domicilios(ano=ano_selecionado)
+except Exception as e:
+    st.error(f"❌ Erro ao carregar dados de {ano_selecionado}: {str(e)}")
+    st.info("💡 **Dica:** Verifique sua conexão com a internet ou tente limpar o cache.")
+    st.stop()
+
+st.title(f"📊 CETIC - TIC Domicílios {ano_selecionado}")
+
+
 
 # Contar indicadores
-total_indicadores = sum(1 for cat in CATEGORIAS.values() for k, v in cat.items() if isinstance(v, str))
-total_comparativos = sum(1 for cat in CATEGORIAS.values() for k, v in cat.items() if isinstance(v, list))
+total_indicadores = sum(1 for cat in CATEGORIAS_DOMICILIO.values() for k, v in cat.items() if isinstance(v, str))
+total_comparativos = sum(1 for cat in CATEGORIAS_DOMICILIO.values() for k, v in cat.items() if isinstance(v, list))
 
 st.markdown(f"""
 ### Selecione um Indicador para Análise
@@ -112,13 +92,13 @@ col_cat, col_ind = st.columns([1, 2])
 with col_cat:
     selected_category = st.selectbox(
         "📁 Categoria",
-        options=list(CATEGORIAS.keys()),
+        options=list(CATEGORIAS_DOMICILIO.keys()),
         help="Selecione uma categoria de indicadores"
     )
 
 # Planificar INDICADORES da categoria selecionada
 INDICADORES_CATEGORIA = {}
-for k, v in CATEGORIAS[selected_category].items():
+for k, v in CATEGORIAS_DOMICILIO[selected_category].items():
     if isinstance(v, str):
         INDICADORES_CATEGORIA[k] = v
     else:
@@ -137,7 +117,7 @@ is_multiple = False
 actual_indicador = selected_indicador_key
 
 # Verificar se o indicador selecionado é uma lista (comparativo)
-for cat in CATEGORIAS.values():
+for cat in CATEGORIAS_DOMICILIO.values():
     if selected_indicador_key in cat and isinstance(cat[selected_indicador_key], list):
         is_multiple = True
         actual_indicador = cat[selected_indicador_key]
@@ -177,8 +157,6 @@ with st.expander("ℹ️ Sobre este Indicador", expanded=False):
 
 st.markdown("---")
 
-# Carrega o analisador
-analisador = get_analisador_domicilios()
 
 # Sidebar - Filtros
 st.sidebar.header("🔍 Filtros")
@@ -187,9 +165,10 @@ st.sidebar.header("🔍 Filtros")
 with st.sidebar.expander("📊 Sobre a Base de Dados", expanded=False):
     st.markdown(f"""
     **Total de Registros:** {len(analisador.df):,}  
-    **Ano:** 2025  
+    **Ano:** {ano_selecionado}  
     **Fonte:** CETIC.br  
-    **Tipo:** TIC Domicílios
+    **Tipo:** TIC Domicílios  
+    **Carregamento:** HTTP + Cache Local
     """)
 
 st.sidebar.markdown("---")
