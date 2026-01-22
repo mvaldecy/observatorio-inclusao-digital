@@ -11,77 +11,167 @@ for p in [root_path, streamlit_path]:
         sys.path.append(p)
 
 from utils.data_loader import get_analisador_domicilios
+from utils.http_loader import HTTPDataLoader
 from cetic.domicilios.metadados import Metadados
+from components.categorias_cetic import CATEGORIAS_DOMICILIO
 
 st.set_page_config(page_title="Cetic Domicílios", layout="wide")
 
-st.title("📊 CETIC - TIC Domicílios")
+# Configurações de Ano e Cache no Sidebar (antes dos filtros)
+st.sidebar.title("⚙️ Configurações")
 
-# Categorias de indicadores
-CATEGORIAS = {
-    "Infraestrutura": {
-        'A4': 'Acesso à Internet',
-        'A1_A': 'Possui Computador de mesa',
-        'A1_B': 'Possui Notebook',
-        'A1_C': 'Possui Tablet',
-        'A1_AGREG': 'Possui algum tipo de computador',
-        'A1A4': 'Presença de computador e Internet',
-    },
-    "Conexão": {
-        'A7': 'Principal tipo de conexão',
-        'A7A': 'Possui WiFi',
-        'A8A': 'Velocidade da Internet',
-        'A9_FAIXA': 'Valor pago pela conexão',
-    },
-    "Barreiras (Motivo principal)": {
-        'A5A': 'Principal motivo de falta de Internet',
-    },
-    "Barreiras (Múltipla escolha)": {
-        'A5_A': 'Falta de computador',
-        'A5_B': 'Falta de necessidade',
-        'A5_C': 'Falta de interesse',
-        'A5_E': 'Muito caro',
-        'A5_F': 'Não sabem usar',
-        'BARREIRAS': ['A5_A', 'A5_B', 'A5_C', 'A5_E', 'A5_F'],
-    }
-}
+# Seletor de ano
+loader = HTTPDataLoader()
+anos_disponiveis = loader.get_anos_disponiveis('domicilios')
 
-# Planificar INDICADORES
-INDICADORES_FLAT = {}
-for cat, inds in CATEGORIAS.items():
-    for k, v in inds.items():
-        if isinstance(v, str):
-            INDICADORES_FLAT[k] = f"[{cat}] {v}"
-        else:
-            INDICADORES_FLAT[k] = f"[{cat}] COMPARATIVO: {k}"
+ano_selecionado = st.sidebar.selectbox(
+    "📅 Ano da Pesquisa",
+    options=anos_disponiveis,
+    index=0,
+    help="Selecione o ano da pesquisa TIC Domicílios"
+)
 
-selected_indicador_key = st.selectbox("Selecione o Indicador para Análise", 
-                                      options=list(INDICADORES_FLAT.keys()),
-                                      format_func=lambda x: INDICADORES_FLAT[x])
+# Botões de gerenciamento de cache
+col_btn1, col_btn2 = st.sidebar.columns(2)
+
+with col_btn1:
+    if st.button("🔄 Atualizar", help="Baixar nova versão dos dados", use_container_width=True):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        loader.carregar_dados(ano_selecionado, 'domicilios', force_download=True)
+        st.rerun()
+
+with col_btn2:
+    if st.button("🗑️ Limpar Cache", help="Remover dados em cache", use_container_width=True):
+        loader.limpar_cache(ano_selecionado)
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
+
+# Info sobre cache
+with st.sidebar.expander("💾 Informações do Cache", expanded=False):
+    cache_info = loader.info_cache()
+
+    if cache_info:
+        for ano, arquivos in cache_info.items():
+            st.markdown(f"**{ano}:**")
+            for tipo, info in arquivos.items():
+                icone = "✅" if info['existe'] else "❌"
+                st.markdown(f"  {icone} **{tipo}**: {info['tamanho_mb']} MB")
+    else:
+        st.info("📂 Nenhum arquivo em cache")
+
+st.sidebar.markdown("---")
+
+# Carrega analisador (com cache por ano)
+try:
+    analisador = get_analisador_domicilios(ano=ano_selecionado)
+except Exception as e:
+    st.error(f"❌ Erro ao carregar dados de {ano_selecionado}: {str(e)}")
+    st.info("💡 **Dica:** Verifique sua conexão com a internet ou tente limpar o cache.")
+    st.stop()
+
+st.title(f"📊 CETIC - TIC Domicílios {ano_selecionado}")
+
+
+
+# Contar indicadores
+total_indicadores = sum(1 for cat in CATEGORIAS_DOMICILIO.values() for k, v in cat.items() if isinstance(v, str))
+total_comparativos = sum(1 for cat in CATEGORIAS_DOMICILIO.values() for k, v in cat.items() if isinstance(v, list))
+
+st.markdown(f"""
+### Selecione um Indicador para Análise
+Escolha a categoria e depois o indicador específico que deseja analisar.
+
+**Disponíveis:** {total_indicadores} indicadores individuais + {total_comparativos} análises comparativas
+""")
+
+# Seleção por categoria primeiro
+col_cat, col_ind = st.columns([1, 2])
+
+with col_cat:
+    selected_category = st.selectbox(
+        "📁 Categoria",
+        options=list(CATEGORIAS_DOMICILIO.keys()),
+        help="Selecione uma categoria de indicadores"
+    )
+
+# Planificar INDICADORES da categoria selecionada
+INDICADORES_CATEGORIA = {}
+for k, v in CATEGORIAS_DOMICILIO[selected_category].items():
+    if isinstance(v, str):
+        INDICADORES_CATEGORIA[k] = v
+    else:
+        INDICADORES_CATEGORIA[k] = f"COMPARATIVO: {k}"
+
+with col_ind:
+    selected_indicador_key = st.selectbox(
+        "📊 Indicador",
+        options=list(INDICADORES_CATEGORIA.keys()),
+        format_func=lambda x: INDICADORES_CATEGORIA[x],
+        help="Selecione o indicador específico"
+    )
 
 # Determinar se é análise múltipla
-is_multiple = isinstance(selected_indicador_key, str) and selected_indicador_key in [k for cat in CATEGORIAS.values() for k, v in cat.items() if isinstance(v, list)]
+is_multiple = False
 actual_indicador = selected_indicador_key
-if is_multiple:
-    for cat in CATEGORIAS.values():
-        if selected_indicador_key in cat and isinstance(cat[selected_indicador_key], list):
-            actual_indicador = cat[selected_indicador_key]
-            break
+
+# Verificar se o indicador selecionado é uma lista (comparativo)
+for cat in CATEGORIAS_DOMICILIO.values():
+    if selected_indicador_key in cat and isinstance(cat[selected_indicador_key], list):
+        is_multiple = True
+        actual_indicador = cat[selected_indicador_key]
+        break
 
 # Obter label amigável
 if is_multiple:
-    label_indicador = f"Comparativo: {selected_indicador_key}"
+    label_indicador = f"📊 Comparativo: {selected_indicador_key}"
 else:
     meta_col = getattr(Metadados, actual_indicador, None)
-    label_indicador = getattr(meta_col, '_label', INDICADORES_FLAT[actual_indicador])
+    label_indicador = getattr(meta_col, '_label', INDICADORES_CATEGORIA.get(actual_indicador, actual_indicador))
 
 st.subheader(label_indicador)
 
-# Carrega o analisador
-analisador = get_analisador_domicilios()
+# Card informativo sobre o indicador
+with st.expander("ℹ️ Sobre este Indicador", expanded=False):
+    col_info_ind1, col_info_ind2 = st.columns(2)
+
+    with col_info_ind1:
+        st.markdown(f"""
+        **Código:** `{selected_indicador_key}`  
+        **Categoria:** {selected_category}  
+        **Tipo:** {'Análise Comparativa' if is_multiple else 'Indicador Individual'}
+        """)
+
+    with col_info_ind2:
+        if is_multiple:
+            st.markdown(f"""
+            **Indicadores comparados:** {len(actual_indicador)}  
+            **Itens:** {', '.join(actual_indicador)}
+            """)
+        else:
+            st.markdown(f"""
+            **Label completa:**  
+            {label_indicador}
+            """)
+
+st.markdown("---")
+
 
 # Sidebar - Filtros
-st.sidebar.header("Filtros")
+st.sidebar.header("🔍 Filtros")
+
+# Informações sobre a base
+with st.sidebar.expander("📊 Sobre a Base de Dados", expanded=False):
+    st.markdown(f"""
+    **Total de Registros:** {len(analisador.df):,}  
+    **Ano:** {ano_selecionado}  
+    **Fonte:** CETIC.br  
+    **Tipo:** TIC Domicílios  
+    **Carregamento:** HTTP + Cache Local
+    """)
+
+st.sidebar.markdown("---")
 
 def limpar_filtros():
     st.session_state['uf_dom'] = "Brasil"
@@ -148,44 +238,346 @@ if f_regiao: filtros.append(f_regiao)
 # Executar análise
 # Criamos uma cópia do dataframe para não afetar o original no analisador (que é cacheado)
 df_filtrado = analisador.df.copy()
+total_original = len(df_filtrado)
 
-# O analisador.filtrar_dados modifica self.df, então vamos instanciar um novo ou usar o método de forma isolada
-# Para simplificar aqui e garantir que o cache funcione bem, vamos usar o analisar_indicador passando o df filtrado manualmente
+# Aplicar os filtros
 for f in filtros:
     col = f.column
     df_filtrado = df_filtrado[df_filtrado[col] == f]
 
-st.info(f"Registros encontrados: {len(df_filtrado)}")
+# Mostrar informações de filtros de forma mais visual
+filtros_ativos = []
+if len(filtros) > 0:
+    for f in filtros:
+        col = f.column
+        meta_class = getattr(Metadados, col, None)
+        if meta_class and hasattr(meta_class, '_map'):
+            label = meta_class._map.get(float(f), str(f))
+            col_name = getattr(meta_class, '_label', col)
+            filtros_ativos.append(f"**{col_name}:** {label}")
+
+# Layout melhorado com métricas
+col_info1, col_info2, col_info3 = st.columns(3)
+
+with col_info1:
+    st.metric("📊 Registros", f"{len(df_filtrado):,}",
+              delta=f"{len(df_filtrado) - total_original:,}" if len(filtros) > 0 else None,
+              delta_color="off")
+
+with col_info2:
+    if len(filtros) > 0:
+        st.metric("🔍 Filtros Ativos", len(filtros))
+    else:
+        st.metric("🔍 Filtros Ativos", "Nenhum")
+
+with col_info3:
+    percentual = (len(df_filtrado) / total_original * 100) if total_original > 0 else 0
+    st.metric("📈 % da Base", f"{percentual:.1f}%")
+
+# Mostrar filtros ativos em expander
+if filtros_ativos:
+    with st.expander("🔎 Detalhes dos Filtros Ativos", expanded=False):
+        for filtro in filtros_ativos:
+            st.markdown(f"- {filtro}")
 
 # Análise do Indicador Selecionado
 if len(df_filtrado) > 0:
+    # Criar abas principais
+    tab_comparativo, tab_customizado = st.tabs(["🗺️ Comparativo Geográfico", "🔍 Análise Customizada"])
+
+    with tab_comparativo:
+        st.markdown("### 📍 Comparação: Brasil | Nordeste | Piauí")
+        st.markdown("Visualização fixa das três regiões de interesse. Você pode aplicar filtros adicionais abaixo.")
+
+        # Sub-filtros para o comparativo geográfico
+        st.markdown("---")
+        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+
+        with col_f1:
+            # Filtro de Área para comparativo
+            area_comp_options = ["Todas"] + list(areas.values())
+            selected_area_comp = st.selectbox("🏘️ Área", area_comp_options, key='area_comp')
+
+        with col_f2:
+            # Filtro de Classe para comparativo
+            class_comp_options = ["Todas"] + list(classes.values())
+            selected_class_comp = st.selectbox("💼 Classe Social", class_comp_options, key='classe_comp')
+
+        with col_f3:
+            # Filtro de Renda para comparativo
+            renda_comp_options = ["Todas"] + list(rendas.values())
+            selected_renda_comp = st.selectbox("💰 Renda Familiar", renda_comp_options, key='renda_comp')
+
+        with col_f4:
+            if st.button("🔄 Resetar Filtros Comparativo", key='reset_comp'):
+                st.rerun()
+
+        # Aplicar filtros adicionais ao comparativo
+        filtros_comp = []
+
+        f_area_comp = get_meta_value(Metadados.AREA, areas, selected_area_comp)
+        if f_area_comp: filtros_comp.append(f_area_comp)
+
+        f_class_comp = get_meta_value(Metadados.CLASSE_2015, classes, selected_class_comp)
+        if f_class_comp: filtros_comp.append(f_class_comp)
+
+        f_renda_comp = get_meta_value(Metadados.RENDA_FAMILIAR_2, rendas, selected_renda_comp)
+        if f_renda_comp: filtros_comp.append(f_renda_comp)
+
+        st.markdown("---")
+
+        # Análises para Brasil, Nordeste e Piauí
+        col_brasil, col_nordeste, col_piaui = st.columns(3)
+
+        # BRASIL
+        with col_brasil:
+            st.markdown("#### 🇧🇷 Brasil")
+            df_brasil = analisador.df.copy()
+            for f in filtros_comp:
+                col = f.column
+                df_brasil = df_brasil[df_brasil[col] == f]
+
+            res_brasil = analisador.analisar_indicador(actual_indicador, df_contexto=df_brasil)
+
+            if res_brasil is not None and len(res_brasil) > 0:
+                st.metric("📊 Registros", f"{len(df_brasil):,}")
+
+                # Mostrar KPI principal
+                if not is_multiple:
+                    sim_row = res_brasil[res_brasil['Descrição'] == 'Sim']
+                    if not sim_row.empty:
+                        st.metric("✅ Sim", sim_row['Percentual'].values[0])
+                else:
+                    chart_data = res_brasil.copy()
+                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
+                    st.metric("🏆 Maior", f"{top_row['Percentual']}")
+                    st.caption(top_row['Descrição'])
+
+                # Gráfico de barras
+                chart_data = res_brasil.copy()
+                chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
+
+                with st.expander("📋 Ver Dados Completos"):
+                    st.dataframe(res_brasil, use_container_width=True)
+            else:
+                st.warning("Sem dados")
+
+        # NORDESTE
+        with col_nordeste:
+            st.markdown("#### 🌴 Nordeste")
+            df_nordeste = analisador.df.copy()
+            df_nordeste = df_nordeste[df_nordeste['COD_REGIAO_2'] == Metadados.COD_REGIAO_2.NORDESTE]
+            for f in filtros_comp:
+                col = f.column
+                df_nordeste = df_nordeste[df_nordeste[col] == f]
+
+            res_nordeste = analisador.analisar_indicador(actual_indicador, df_contexto=df_nordeste)
+
+            if res_nordeste is not None and len(res_nordeste) > 0:
+                st.metric("📊 Registros", f"{len(df_nordeste):,}")
+
+                # Mostrar KPI principal
+                if not is_multiple:
+                    sim_row = res_nordeste[res_nordeste['Descrição'] == 'Sim']
+                    if not sim_row.empty:
+                        st.metric("✅ Sim", sim_row['Percentual'].values[0])
+                else:
+                    chart_data = res_nordeste.copy()
+                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
+                    st.metric("🏆 Maior", f"{top_row['Percentual']}")
+                    st.caption(top_row['Descrição'])
+
+                # Gráfico de barras
+                chart_data = res_nordeste.copy()
+                chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
+
+                with st.expander("📋 Ver Dados Completos"):
+                    st.dataframe(res_nordeste, use_container_width=True)
+            else:
+                st.warning("Sem dados")
+
+        # PIAUÍ
+        with col_piaui:
+            st.markdown("#### 🏛️ Piauí")
+            df_piaui = analisador.df.copy()
+            df_piaui = df_piaui[df_piaui['COD_UF'] == Metadados.COD_UF.PIAUI]
+            for f in filtros_comp:
+                col = f.column
+                df_piaui = df_piaui[df_piaui[col] == f]
+
+            res_piaui = analisador.analisar_indicador(actual_indicador, df_contexto=df_piaui)
+
+            if res_piaui is not None and len(res_piaui) > 0:
+                st.metric("📊 Registros", f"{len(df_piaui):,}")
+
+                # Mostrar KPI principal
+                if not is_multiple:
+                    sim_row = res_piaui[res_piaui['Descrição'] == 'Sim']
+                    if not sim_row.empty:
+                        st.metric("✅ Sim", sim_row['Percentual'].values[0])
+                else:
+                    chart_data = res_piaui.copy()
+                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
+                    st.metric("🏆 Maior", f"{top_row['Percentual']}")
+                    st.caption(top_row['Descrição'])
+
+                # Gráfico de barras
+                chart_data = res_piaui.copy()
+                chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
+
+                with st.expander("📋 Ver Dados Completos"):
+                    st.dataframe(res_piaui, use_container_width=True)
+            else:
+                st.warning("Sem dados")
+
+        # Gráfico comparativo consolidado
+        st.markdown("---")
+        st.markdown("### 📊 Visão Consolidada")
+
+        if res_brasil is not None and res_nordeste is not None and res_piaui is not None:
+            # Criar dataframe comparativo
+            df_comp_list = []
+
+            for idx, row in res_brasil.iterrows():
+                df_comp_list.append({
+                    'Região': 'Brasil',
+                    'Categoria': row['Descrição'],
+                    'Percentual': float(row['Percentual'].replace('%', ''))
+                })
+
+            for idx, row in res_nordeste.iterrows():
+                df_comp_list.append({
+                    'Região': 'Nordeste',
+                    'Categoria': row['Descrição'],
+                    'Percentual': float(row['Percentual'].replace('%', ''))
+                })
+
+            for idx, row in res_piaui.iterrows():
+                df_comp_list.append({
+                    'Região': 'Piauí',
+                    'Categoria': row['Descrição'],
+                    'Percentual': float(row['Percentual'].replace('%', ''))
+                })
+
+            df_comparativo = pd.DataFrame(df_comp_list)
+
+            # Criar pivot para tabela comparativa
+            df_pivot = df_comparativo.pivot(index='Categoria', columns='Região', values='Percentual')
+
+            # Tabela comparativa (sempre visível)
+            st.dataframe(df_pivot, use_container_width=True)
+
+            # Exportar comparativo
+            col_exp1, col_exp2 = st.columns(2)
+            with col_exp1:
+                csv_comp = df_comparativo.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Download Comparativo (CSV)",
+                    data=csv_comp,
+                    file_name=f"comparativo_br_ne_pi_{selected_indicador_key}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+
+    with tab_customizado:
+        st.markdown("### 🔍 Análise com Filtros Personalizados")
+        st.markdown("Use os filtros da barra lateral para criar sua própria análise.")
+
     res = analisador.analisar_indicador(actual_indicador, df_contexto=df_filtrado)
-    
+
     if res is not None:
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            st.write("### Tabela de Resultados")
-            st.dataframe(res, use_container_width=True)
-            
-        with col2:
-            st.write("### Visualização")
+        # Usar tabs para organizar melhor
+        tab1, tab2, tab3 = st.tabs(["📊 Resumo", "📈 Gráficos", "📥 Dados"])
+
+        with tab1:
+            # Resumo com KPIs principais
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                if not is_multiple:
+                    sim_row = res[res['Descrição'] == 'Sim']
+                    if not sim_row.empty:
+                        st.metric("✅ Sim", sim_row['Percentual'].values[0],
+                                 help="Percentual de domicílios que responderam 'Sim'")
+                else:
+                    chart_data = res.copy()
+                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
+                    st.metric("🏆 Maior", f"{top_row['Indicador']}: {top_row['Percentual']}")
+
+            with col2:
+                if not is_multiple:
+                    nao_row = res[res['Descrição'] == 'Não']
+                    if not nao_row.empty:
+                        st.metric("❌ Não", nao_row['Percentual'].values[0],
+                                 help="Percentual de domicílios que responderam 'Não'")
+
+            with col3:
+                st.metric("📋 Total de Categorias", len(res),
+                         help="Número de categorias de resposta")
+
+            st.markdown("---")
+
+            # Tabela formatada
+            st.write("### 📊 Tabela Detalhada")
+            st.dataframe(res, use_container_width=True, height=300)
+
+        with tab2:
+            # Gráficos melhorados
             chart_data = res.copy()
             chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
-            
-            # Gráfico de barras
-            st.bar_chart(chart_data, x="Descrição", y="Percentual_Num")
-            
-            # KPI (Apenas se tiver 'Sim')
-            if not is_multiple:
-                sim_row = res[res['Descrição'] == 'Sim']
-                if not sim_row.empty:
-                    st.metric(f"{selected_indicador_key} (Sim)", sim_row['Percentual'].values[0])
-            else:
-                top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
-                st.metric(f"Maior: {top_row['Indicador']}", top_row['Percentual'])
+
+            col_g1, col_g2 = st.columns(2)
+
+            with col_g1:
+                st.write("### 📊 Gráfico de Barras")
+                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=400)
+
+            with col_g2:
+                st.write("### 🥧 Distribuição")
+                # Criar visualização alternativa
+                top_5 = chart_data.nlargest(5, 'Percentual_Num')
+                for idx, row in top_5.iterrows():
+                    st.progress(row['Percentual_Num'] / 100,
+                              text=f"{row['Descrição']}: {row['Percentual']}")
+
+        with tab3:
+            # Download dos dados
+            st.write("### 📥 Exportar Dados")
+
+            col_d1, col_d2 = st.columns(2)
+
+            with col_d1:
+                # Preparar dados para download
+                csv = res.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Download CSV",
+                    data=csv,
+                    file_name=f"cetic_domicilios_{selected_indicador_key}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    help="Baixar dados em formato CSV"
+                )
+
+            with col_d2:
+                # Mostrar informações sobre os dados
+                st.info(f"""
+                **Informações do Dataset:**
+                - Indicador: {selected_indicador_key}
+                - Registros: {len(df_filtrado):,}
+                - Categorias: {len(res)}
+                - Data: {pd.Timestamp.now().strftime('%d/%m/%Y')}
+                """)
+
+            st.write("### 📋 Pré-visualização dos Dados")
+            st.dataframe(res, use_container_width=True)
 else:
-    st.warning("Nenhum dado encontrado para os filtros selecionados.")
+    st.warning("⚠️ Nenhum dado encontrado para os filtros selecionados.")
+    st.info("💡 **Dica:** Tente remover alguns filtros ou selecionar uma combinação diferente.")
 
 st.markdown("---")
 st.caption("Fonte: Microdados da TIC Domicílios 2025 (CETIC.br)")

@@ -1,26 +1,51 @@
 import pandas as pd
 import pyreadstat
-import os
 try:
     from cetic.individuos.metadados_individuos import MetadadosIndividuos
 except ImportError:
     from metadados_individuos import MetadadosIndividuos
 
 class AnalisadorIndividuosCETIC:
-    def __init__(self, data_path=None):
-        base_path = os.path.dirname(__file__)
-        
-        if data_path is None:
-            data_path = os.path.join(base_path, 'tic_domicilios_2025_individuos_base_de_microdados_v1.0.sav')
-        
-        print(f"Carregando dados de: {data_path}...")
-        try:
-            self.df, self.meta = pyreadstat.read_sav(data_path)
-            print(f"Base carregada com {len(self.df)} registros e {len(self.df.columns)} colunas.")
-        except Exception as e:
-            print(f"Erro ao carregar arquivo .sav: {e}")
-            self.df = pd.DataFrame()
-            self.meta = None
+    def __init__(self, data_path=None, ano: int = 2025, df=None, meta=None):
+        """
+        Inicializa o analisador de indivíduos CETIC
+
+        Args:
+            data_path: Caminho para arquivo local (opcional, somente para uso direto)
+            ano: Ano da pesquisa (default: 2025)
+            df: DataFrame já carregado (obrigatório quando usado via data_loader)
+            meta: Metadados já carregados (opcional)
+
+        Nota:
+            Para uso em aplicações Streamlit, utilize get_analisador_individuos(ano)
+            do módulo streamlit.utils.data_loader, que busca automaticamente do cache HTTP.
+        """
+        self.ano = ano
+
+        # Quando usado via data_loader (caso normal no Streamlit)
+        if df is not None:
+            self.df = df
+            self.meta = meta
+            print(f"✓ Analisador inicializado com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
+        elif data_path is not None:
+            # Uso direto com arquivo local (scripts standalone)
+            print(f"⚠️ Carregando de arquivo local: {data_path}")
+            try:
+                if data_path.endswith('.sav'):
+                    self.df, self.meta = pyreadstat.read_sav(data_path)
+                else:
+                    raise ValueError(f"Formato não suportado: {data_path}. Use arquivo .sav")
+                print(f"✓ Base carregada com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
+            except Exception as e:
+                print(f"❌ Erro ao carregar arquivo: {e}")
+                raise
+        else:
+            # Sem dados nem arquivo - erro
+            raise ValueError(
+                "❌ Analisador requer dados.\n"
+                "Para aplicações Streamlit, use: get_analisador_individuos(ano)\n"
+                "Para scripts standalone, passe data_path com caminho do arquivo .sav"
+            )
 
     def filtrar_dados(self, *args, **kwargs):
         """
@@ -96,6 +121,24 @@ class AnalisadorIndividuosCETIC:
             })
             
         return pd.DataFrame(resumo)
+
+    def analisar_com_internet(self, indicador, df_contexto=None):
+        """
+        Analisa um indicador mostrando também a distribuição de uso da Internet (C1).
+        Retorna dois DataFrames: (resultado_indicador, resultado_internet)
+        """
+        df = df_contexto if df_contexto is not None else self.df
+
+        if df.empty:
+            return None, None
+
+        # Analisa o indicador principal
+        resultado_indicador = self.analisar_indicador(indicador, df_contexto=df)
+
+        # Analisa o uso da Internet (C1)
+        resultado_internet = self.analisar_indicador('C1', df_contexto=df)
+
+        return resultado_indicador, resultado_internet
 
     def analisar_uso_internet(self, *args, **kwargs):
         """

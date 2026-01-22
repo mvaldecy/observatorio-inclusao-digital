@@ -1,29 +1,54 @@
 import pandas as pd
 import pyreadstat
-import os
 try:
     from cetic.domicilios.metadados import Metadados
 except ImportError:
     from metadados import Metadados
 
 class AnalisadorDomiciliosCETIC:
-    def __init__(self, data_path=None):
-        base_path = os.path.dirname(__file__)
-        
-        if data_path is None:
-            data_path = os.path.join(base_path, 'tic_domicilios_2025_domicilios_base_de_microdados_v1.0.parquet')
-        
-        print(f"Carregando dados de: {data_path}...")
-        try:
-            # Usando pyreadstat para ler o arquivo .sav diretamente em um DataFrame pandas
-            self.df = pd.read_parquet(data_path)
-            self.meta = None
+    def __init__(self, data_path=None, ano: int = 2025, df=None, meta=None):
+        """
+        Inicializa o analisador de domicílios CETIC
 
-            print(f"Base carregada com {len(self.df)} registros e {len(self.df.columns)} colunas.")
-        except Exception as e:
-            print(f"Erro ao carregar arquivo .sav: {e}")
-            self.df = pd.DataFrame()
-            self.meta = None
+        Args:
+            data_path: Caminho para arquivo local (opcional, somente para uso direto)
+            ano: Ano da pesquisa (default: 2025)
+            df: DataFrame já carregado (obrigatório quando usado via data_loader)
+            meta: Metadados já carregados (opcional)
+
+        Nota:
+            Para uso em aplicações Streamlit, utilize get_analisador_domicilios(ano)
+            do módulo streamlit.utils.data_loader, que busca automaticamente do cache HTTP.
+        """
+        self.ano = ano
+
+        # Quando usado via data_loader (caso normal no Streamlit)
+        if df is not None:
+            self.df = df
+            self.meta = meta
+            print(f"✓ Analisador inicializado com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
+        elif data_path is not None:
+            # Uso direto com arquivo local (scripts standalone)
+            print(f"⚠️ Carregando de arquivo local: {data_path}")
+            try:
+                if data_path.endswith('.parquet'):
+                    self.df = pd.read_parquet(data_path)
+                    self.meta = None
+                elif data_path.endswith('.sav'):
+                    self.df, self.meta = pyreadstat.read_sav(data_path)
+                else:
+                    raise ValueError(f"Formato não suportado: {data_path}")
+                print(f"✓ Base carregada com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
+            except Exception as e:
+                print(f"❌ Erro ao carregar arquivo: {e}")
+                raise
+        else:
+            # Sem dados nem arquivo - erro
+            raise ValueError(
+                "❌ Analisador requer dados.\n"
+                "Para aplicações Streamlit, use: get_analisador_domicilios(ano)\n"
+                "Para scripts standalone, passe data_path com caminho do arquivo .sav ou .parquet"
+            )
 
     def renomear_colunas_com_labels(self):
         """
@@ -124,7 +149,6 @@ class AnalisadorDomiciliosCETIC:
             label = labels_valores.get(val, "Não categorizado")
             percent = (count / total) * 100 if total > 0 else 0
             resumo.append({
-                'Código': val,
                 'Descrição': label,
                 'Total': count,
                 'Percentual': f"{percent:.2f}%"
@@ -158,6 +182,7 @@ if __name__ == "__main__":
     resultado = app.analisar_inclusao_digital(
         Metadados.COD_UF.PIAUI,
         Metadados.AREA.RURAL,
+        Metadados.GRAU_INSTRUCAO.FUNDAMENTAL_COMPLETO_MEDIO_INCOMPLETO
 
     )
 

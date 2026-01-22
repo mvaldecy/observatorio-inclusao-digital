@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Dados CETIC - usar cache HTTP
+cetic/domicilios/*.sav
+cetic/domicilios/*.parquet
+cetic/domicilios/*.csv
+cetic/individuos/*.sav
+cetic/individuos/*.parquet
+cetic/individuos/*.csv
+
+# Cache de dados (mantém estrutura, ignora arquivos)
+data/cache/**/*.sav
+data/cache/**/*.parquet
+
+# Outputs
+cetic/output/*.csv
+cetic/output/*.json
+cetic/output/*.xlsx
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
+
