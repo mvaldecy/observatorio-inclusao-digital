@@ -34,7 +34,7 @@ source .venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 
 # Execute a aplicação
-streamlit run streamlit/app.py
+streamlit run streamlit/Home.py
 ```
 
 ## 🗂️ Estrutura do Projeto
@@ -42,7 +42,7 @@ streamlit run streamlit/app.py
 ```
 observatorio-inclusao-digital/
 ├── streamlit/              # Aplicação Streamlit
-│   ├── app.py             # Página principal
+│   ├── Home.py            # Página principal (Home)
 │   ├── pages/             # Páginas da aplicação
 │   ├── components/        # Componentes reutilizáveis
 │   └── utils/             # Utilitários (data_loader, http_loader)

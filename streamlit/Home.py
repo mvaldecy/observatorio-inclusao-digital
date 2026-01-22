@@ -11,8 +11,7 @@ st.title("🌐 Observatório de Inclusão Digital")
 st.markdown("""
 Bem-vindo ao Dashboard do Observatório de Inclusão Digital.
 
-Este projeto visa analisar e visualizar dados sobre o acesso à tecnologia e à internet no Brasil, 
-utilizando bases de dados como as do CETIC.br.
+Este projeto visa analisar e visualizar dados sobre o acesso à tecnologia e à internet no Brasil.
 
 ### Como navegar:
 Utilize o menu lateral para acessar os dashboards específicos:
