@@ -1,6 +1,5 @@
 import pandas as pd
 import pyreadstat
-import os
 try:
     from cetic.individuos.metadados_individuos import MetadadosIndividuos
 except ImportError:
@@ -12,46 +11,41 @@ class AnalisadorIndividuosCETIC:
         Inicializa o analisador de indivíduos CETIC
 
         Args:
-            data_path: Caminho para arquivo local (opcional)
+            data_path: Caminho para arquivo local (opcional, somente para uso direto)
             ano: Ano da pesquisa (default: 2025)
-            df: DataFrame já carregado (opcional, usado pelo data_loader)
+            df: DataFrame já carregado (obrigatório quando usado via data_loader)
             meta: Metadados já carregados (opcional)
+
+        Nota:
+            Para uso em aplicações Streamlit, utilize get_analisador_individuos(ano)
+            do módulo streamlit.utils.data_loader, que busca automaticamente do cache HTTP.
         """
         self.ano = ano
-        base_path = os.path.dirname(__file__)
-        
-        # Se df foi passado, usa ele (evita importação circular)
+
+        # Quando usado via data_loader (caso normal no Streamlit)
         if df is not None:
             self.df = df
             self.meta = meta
-            print(f"Analisador inicializado com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
-        elif data_path is None:
-            # Fallback para arquivo local padrão
-            data_path = os.path.join(base_path, 'tic_domicilios_2025_individuos_base_de_microdados_v1.0.sav')
+            print(f"✓ Analisador inicializado com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
+        elif data_path is not None:
+            # Uso direto com arquivo local (scripts standalone)
             print(f"⚠️ Carregando de arquivo local: {data_path}")
-            try:
-                self.df, self.meta = pyreadstat.read_sav(data_path)
-                print(f"Base carregada com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
-            except Exception as e:
-                print(f"❌ Erro ao carregar arquivo local: {e}")
-                self.df = pd.DataFrame()
-                self.meta = None
-                raise ValueError(f"Não foi possível carregar dados. Use get_analisador_individuos(ano) do data_loader.")
-        else:
-            # Carrega de arquivo local especificado
-            print(f"Carregando dados de: {data_path}...")
             try:
                 if data_path.endswith('.sav'):
                     self.df, self.meta = pyreadstat.read_sav(data_path)
                 else:
-                    raise ValueError(f"Formato não suportado: {data_path}")
-
-                print(f"Base carregada com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
+                    raise ValueError(f"Formato não suportado: {data_path}. Use arquivo .sav")
+                print(f"✓ Base carregada com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
             except Exception as e:
-                print(f"Erro ao carregar arquivo: {e}")
-                self.df = pd.DataFrame()
-                self.meta = None
+                print(f"❌ Erro ao carregar arquivo: {e}")
                 raise
+        else:
+            # Sem dados nem arquivo - erro
+            raise ValueError(
+                "❌ Analisador requer dados.\n"
+                "Para aplicações Streamlit, use: get_analisador_individuos(ano)\n"
+                "Para scripts standalone, passe data_path com caminho do arquivo .sav"
+            )
 
     def filtrar_dados(self, *args, **kwargs):
         """

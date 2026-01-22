@@ -254,6 +254,220 @@ if filtros_ativos:
 
 # Análise do Indicador Selecionado
 if len(df_filtrado) > 0:
+    # Criar abas principais
+    tab_comparativo, tab_customizado = st.tabs(["🗺️ Comparativo Geográfico", "🔍 Análise Customizada"])
+
+    with tab_comparativo:
+        st.markdown("### 📍 Comparação: Brasil | Nordeste | Piauí")
+        st.markdown("Visualização fixa das três regiões de interesse. Você pode aplicar filtros adicionais abaixo.")
+
+        # Sub-filtros para o comparativo geográfico
+        st.markdown("---")
+        col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns(5)
+
+        with col_f1:
+            # Filtro de Classe para comparativo
+            class_comp_options = ["Todas"] + list(classes.values())
+            selected_class_comp = st.selectbox("💼 Classe Social", class_comp_options, key='classe_comp')
+
+        with col_f2:
+            # Filtro de Renda para comparativo
+            renda_comp_options = ["Todas"] + list(rendas.values())
+            selected_renda_comp = st.selectbox("💰 Renda Familiar", renda_comp_options, key='renda_comp')
+
+        with col_f3:
+            # Filtro de Sexo para comparativo
+            sexo_comp_options = ["Todos"] + list(sexos.values())
+            selected_sexo_comp = st.selectbox("👤 Sexo", sexo_comp_options, key='sexo_comp')
+
+        with col_f4:
+            # Filtro de Faixa Etária para comparativo
+            faixa_comp_options = ["Todas"] + list(faixas_etarias.values())
+            selected_faixa_comp = st.selectbox("🎂 Faixa Etária", faixa_comp_options, key='faixa_comp')
+
+        with col_f5:
+            if st.button("🔄 Resetar Filtros Comparativo", key='reset_comp'):
+                st.rerun()
+
+        # Aplicar filtros adicionais ao comparativo
+        filtros_comp = []
+
+        f_class_comp = get_meta_value(MetadadosIndividuos.CLASSE_2015, classes, selected_class_comp)
+        if f_class_comp: filtros_comp.append(f_class_comp)
+
+        f_renda_comp = get_meta_value(MetadadosIndividuos.RENDA_FAMILIAR_2, rendas, selected_renda_comp)
+        if f_renda_comp: filtros_comp.append(f_renda_comp)
+
+        f_sexo_comp = get_meta_value(MetadadosIndividuos.SEXO, sexos, selected_sexo_comp)
+        if f_sexo_comp: filtros_comp.append(f_sexo_comp)
+
+        f_faixa_comp = get_meta_value(MetadadosIndividuos.FAIXA_ETARIA, faixas_etarias, selected_faixa_comp)
+        if f_faixa_comp: filtros_comp.append(f_faixa_comp)
+
+        st.markdown("---")
+
+        # Análises para Brasil, Nordeste e Piauí
+        col_brasil, col_nordeste, col_piaui = st.columns(3)
+
+        # BRASIL
+        with col_brasil:
+            st.markdown("#### 🇧🇷 Brasil")
+            df_brasil = analisador.df.copy()
+            for f in filtros_comp:
+                col = f.column
+                df_brasil = df_brasil[df_brasil[col] == f]
+
+            res_brasil = analisador.analisar_indicador(actual_indicador, df_contexto=df_brasil)
+
+            if res_brasil is not None and len(res_brasil) > 0:
+                st.metric("📊 Registros", f"{len(df_brasil):,}")
+
+                # Mostrar KPI principal
+                if not is_multiple:
+                    sim_row = res_brasil[res_brasil['Descrição'] == 'Sim']
+                    if not sim_row.empty:
+                        st.metric("✅ Sim", sim_row['Percentual'].values[0])
+                else:
+                    chart_data = res_brasil.copy()
+                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
+                    st.metric("🏆 Maior", f"{top_row['Percentual']}")
+                    st.caption(top_row['Descrição'])
+
+                # Gráfico de barras
+                chart_data = res_brasil.copy()
+                chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
+
+                with st.expander("📋 Ver Dados Completos"):
+                    st.dataframe(res_brasil, use_container_width=True)
+            else:
+                st.warning("Sem dados")
+
+        # NORDESTE
+        with col_nordeste:
+            st.markdown("#### 🌴 Nordeste")
+            df_nordeste = analisador.df.copy()
+            df_nordeste = df_nordeste[df_nordeste['COD_REGIAO_2'] == MetadadosIndividuos.COD_REGIAO_2.NORDESTE]
+            for f in filtros_comp:
+                col = f.column
+                df_nordeste = df_nordeste[df_nordeste[col] == f]
+
+            res_nordeste = analisador.analisar_indicador(actual_indicador, df_contexto=df_nordeste)
+
+            if res_nordeste is not None and len(res_nordeste) > 0:
+                st.metric("📊 Registros", f"{len(df_nordeste):,}")
+
+                # Mostrar KPI principal
+                if not is_multiple:
+                    sim_row = res_nordeste[res_nordeste['Descrição'] == 'Sim']
+                    if not sim_row.empty:
+                        st.metric("✅ Sim", sim_row['Percentual'].values[0])
+                else:
+                    chart_data = res_nordeste.copy()
+                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
+                    st.metric("🏆 Maior", f"{top_row['Percentual']}")
+                    st.caption(top_row['Descrição'])
+
+                # Gráfico de barras
+                chart_data = res_nordeste.copy()
+                chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
+
+                with st.expander("📋 Ver Dados Completos"):
+                    st.dataframe(res_nordeste, use_container_width=True)
+            else:
+                st.warning("Sem dados")
+
+        # PIAUÍ
+        with col_piaui:
+            st.markdown("#### 🏛️ Piauí")
+            df_piaui = analisador.df.copy()
+            df_piaui = df_piaui[df_piaui['COD_UF'] == MetadadosIndividuos.COD_UF.PIAUI]
+            for f in filtros_comp:
+                col = f.column
+                df_piaui = df_piaui[df_piaui[col] == f]
+
+            res_piaui = analisador.analisar_indicador(actual_indicador, df_contexto=df_piaui)
+
+            if res_piaui is not None and len(res_piaui) > 0:
+                st.metric("📊 Registros", f"{len(df_piaui):,}")
+
+                # Mostrar KPI principal
+                if not is_multiple:
+                    sim_row = res_piaui[res_piaui['Descrição'] == 'Sim']
+                    if not sim_row.empty:
+                        st.metric("✅ Sim", sim_row['Percentual'].values[0])
+                else:
+                    chart_data = res_piaui.copy()
+                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
+                    st.metric("🏆 Maior", f"{top_row['Percentual']}")
+                    st.caption(top_row['Descrição'])
+
+                # Gráfico de barras
+                chart_data = res_piaui.copy()
+                chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
+
+                with st.expander("📋 Ver Dados Completos"):
+                    st.dataframe(res_piaui, use_container_width=True)
+            else:
+                st.warning("Sem dados")
+
+        # Gráfico comparativo consolidado
+        st.markdown("---")
+        st.markdown("### 📊 Visão Consolidada")
+
+        if res_brasil is not None and res_nordeste is not None and res_piaui is not None:
+            # Criar dataframe comparativo
+            df_comp_list = []
+
+            for idx, row in res_brasil.iterrows():
+                df_comp_list.append({
+                    'Região': 'Brasil',
+                    'Categoria': row['Descrição'],
+                    'Percentual': float(row['Percentual'].replace('%', ''))
+                })
+
+            for idx, row in res_nordeste.iterrows():
+                df_comp_list.append({
+                    'Região': 'Nordeste',
+                    'Categoria': row['Descrição'],
+                    'Percentual': float(row['Percentual'].replace('%', ''))
+                })
+
+            for idx, row in res_piaui.iterrows():
+                df_comp_list.append({
+                    'Região': 'Piauí',
+                    'Categoria': row['Descrição'],
+                    'Percentual': float(row['Percentual'].replace('%', ''))
+                })
+
+            df_comparativo = pd.DataFrame(df_comp_list)
+
+            # Criar gráfico de barras agrupadas usando pivot
+            df_pivot = df_comparativo.pivot(index='Categoria', columns='Região', values='Percentual')
+
+            # Tabela comparativa (sempre visível)
+            st.dataframe(df_pivot, use_container_width=True)
+
+            # Exportar comparativo
+            col_exp1, col_exp2 = st.columns(2)
+            with col_exp1:
+                csv_comp = df_comparativo.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Download Comparativo (CSV)",
+                    data=csv_comp,
+                    file_name=f"comparativo_br_ne_pi_{selected_indicador_key}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+
+    with tab_customizado:
+        st.markdown("### 🔍 Análise com Filtros Personalizados")
+        st.markdown("Use os filtros da barra lateral para criar sua própria análise.")
+
     res = analisador.analisar_indicador(actual_indicador, df_contexto=df_filtrado)
 
     if res is not None:
