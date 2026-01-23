@@ -146,35 +146,73 @@ def limpar_filtros():
     st.session_state['regiao_ind'] = "Brasil"
     st.session_state['faixa_etaria_ind'] = "Todas"
 
+# Função auxiliar para verificar disponibilidade de metadados
+def verificar_metadado_disponivel(nome_campo):
+    try:
+        campo = getattr(MetadadosIndividuos, nome_campo, None)
+        return campo is not None and hasattr(campo, '_map') and len(campo._map) > 0
+    except:
+        return False
+
 # Filtro de UF
-ufs = MetadadosIndividuos.COD_UF._map
-uf_options = ["Brasil"] + list(ufs.values())
-selected_uf_label = st.sidebar.selectbox("UF", uf_options, key='uf_ind')
+if verificar_metadado_disponivel('COD_UF'):
+    ufs = MetadadosIndividuos.COD_UF._map
+    uf_options = ["Brasil"] + list(ufs.values())
+    selected_uf_label = st.sidebar.selectbox("UF", uf_options, key='uf_ind')
+else:
+    st.sidebar.warning(f"⚠️ Filtro de UF indisponível em {ano_selecionado}")
+    selected_uf_label = "Brasil"
+    ufs = {}
 
 # Filtro de Classe Social
-classes = MetadadosIndividuos.CLASSE_2015._map
-class_options = ["Todas"] + list(classes.values())
-selected_class_label = st.sidebar.selectbox("Classe Social", class_options, key='classe_ind')
+if verificar_metadado_disponivel('CLASSE_2015'):
+    classes = MetadadosIndividuos.CLASSE_2015._map
+    class_options = ["Todas"] + list(classes.values())
+    selected_class_label = st.sidebar.selectbox("Classe Social", class_options, key='classe_ind')
+else:
+    st.sidebar.warning(f"⚠️ Filtro de Classe Social indisponível em {ano_selecionado}")
+    selected_class_label = "Todas"
+    classes = {}
 
 # Filtro de Renda Familiar
-rendas = MetadadosIndividuos.RENDA_FAMILIAR_2._map
-renda_options = ["Todas"] + list(rendas.values())
-selected_renda_label = st.sidebar.selectbox("Renda Familiar", renda_options, key='renda_ind')
+if verificar_metadado_disponivel('RENDA_FAMILIAR_2'):
+    rendas = MetadadosIndividuos.RENDA_FAMILIAR_2._map
+    renda_options = ["Todas"] + list(rendas.values())
+    selected_renda_label = st.sidebar.selectbox("Renda Familiar", renda_options, key='renda_ind')
+else:
+    st.sidebar.warning(f"⚠️ Filtro de Renda Familiar indisponível em {ano_selecionado}")
+    selected_renda_label = "Todas"
+    rendas = {}
 
 # Filtro de Sexo
-sexos = MetadadosIndividuos.SEXO._map
-sexo_options = ["Todos"] + list(sexos.values())
-selected_sexo_label = st.sidebar.selectbox("Sexo", sexo_options, key='sexo_ind')
+if verificar_metadado_disponivel('SEXO'):
+    sexos = MetadadosIndividuos.SEXO._map
+    sexo_options = ["Todos"] + list(sexos.values())
+    selected_sexo_label = st.sidebar.selectbox("Sexo", sexo_options, key='sexo_ind')
+else:
+    st.sidebar.warning(f"⚠️ Filtro de Sexo indisponível em {ano_selecionado}")
+    selected_sexo_label = "Todos"
+    sexos = {}
 
 # Filtro de Região
-regioes = MetadadosIndividuos.COD_REGIAO_2._map
-regiao_options = ["Brasil"] + list(regioes.values())
-selected_regiao_label = st.sidebar.selectbox("Região", regiao_options, key='regiao_ind')
+if verificar_metadado_disponivel('COD_REGIAO_2'):
+    regioes = MetadadosIndividuos.COD_REGIAO_2._map
+    regiao_options = ["Brasil"] + list(regioes.values())
+    selected_regiao_label = st.sidebar.selectbox("Região", regiao_options, key='regiao_ind')
+else:
+    st.sidebar.warning(f"⚠️ Filtro de Região indisponível em {ano_selecionado}")
+    selected_regiao_label = "Brasil"
+    regioes = {}
 
 # Filtro de Faixa Etária
-faixas_etarias = MetadadosIndividuos.FAIXA_ETARIA._map
-faixa_options = ["Todas"] + list(faixas_etarias.values())
-selected_faixa_label = st.sidebar.selectbox("Faixa Etária", faixa_options, key='faixa_etaria_ind')
+if verificar_metadado_disponivel('FAIXA_ETARIA'):
+    faixas_etarias = MetadadosIndividuos.FAIXA_ETARIA._map
+    faixa_options = ["Todas"] + list(faixas_etarias.values())
+    selected_faixa_label = st.sidebar.selectbox("Faixa Etária", faixa_options, key='faixa_etaria_ind')
+else:
+    st.sidebar.warning(f"⚠️ Filtro de Faixa Etária indisponível em {ano_selecionado}")
+    selected_faixa_label = "Todas"
+    faixas_etarias = {}
 
 st.sidebar.button("Limpar filtros", on_click=limpar_filtros)
 
@@ -184,11 +222,19 @@ filtros = []
 def get_meta_value(meta_class, label_map, selected_label):
     if selected_label == "Todas" or selected_label == "Brasil" or selected_label == "Todos":
         return None
-    val = [k for k, v in label_map.items() if v == selected_label][0]
-    for attr in dir(meta_class):
-        meta_val = getattr(meta_class, attr)
-        if isinstance(meta_val, float) and meta_val == val:
-            return meta_val
+    if not label_map:  # Se o mapa está vazio, retorna None
+        return None
+    try:
+        val = [k for k, v in label_map.items() if v == selected_label]
+        if not val:
+            return None
+        val = val[0]
+        for attr in dir(meta_class):
+            meta_val = getattr(meta_class, attr)
+            if isinstance(meta_val, float) and meta_val == val:
+                return meta_val
+    except:
+        return None
     return None
 
 f_uf = get_meta_value(MetadadosIndividuos.COD_UF, ufs, selected_uf_label)
@@ -255,7 +301,7 @@ if filtros_ativos:
 # Análise do Indicador Selecionado
 if len(df_filtrado) > 0:
     # Criar abas principais
-    tab_comparativo, tab_customizado = st.tabs(["🗺️ Comparativo Geográfico", "🔍 Análise Customizada"])
+    tab_comparativo, tab_agregadores, tab_customizado = st.tabs(["🗺️ Comparativo Geográfico", "📊 Agregadores", "🔍 Análise Customizada"])
 
     with tab_comparativo:
         st.markdown("### 📍 Comparação: Brasil | Nordeste | Piauí")
@@ -306,8 +352,15 @@ if len(df_filtrado) > 0:
 
         st.markdown("---")
 
-        # Análises para Brasil, Nordeste e Piauí
-        col_brasil, col_nordeste, col_piaui = st.columns(3)
+        # Verificar se COD_UF existe no dataset (só existe em 2025+)
+        tem_cod_uf = 'COD_UF' in analisador.df.columns
+
+        # Análises para Brasil, Nordeste e Piauí (se disponível)
+        if tem_cod_uf:
+            col_brasil, col_nordeste, col_piaui = st.columns(3)
+        else:
+            col_brasil, col_nordeste = st.columns(2)
+            st.info("ℹ️ Dados por estado (Piauí) disponíveis apenas a partir de 2025")
 
         # BRASIL
         with col_brasil:
@@ -356,7 +409,7 @@ if len(df_filtrado) > 0:
             res_nordeste = analisador.analisar_indicador(actual_indicador, df_contexto=df_nordeste)
 
             if res_nordeste is not None and len(res_nordeste) > 0:
-                st.metric("📊 Registros", f"{len(df_nordeste):,}")
+                st.metric("�� Registros", f"{len(df_nordeste):,}")
 
                 # Mostrar KPI principal
                 if not is_multiple:
@@ -380,47 +433,54 @@ if len(df_filtrado) > 0:
             else:
                 st.warning("Sem dados")
 
-        # PIAUÍ
-        with col_piaui:
-            st.markdown("#### 🏛️ Piauí")
-            df_piaui = analisador.df.copy()
-            df_piaui = df_piaui[df_piaui['COD_UF'] == MetadadosIndividuos.COD_UF.PIAUI]
-            for f in filtros_comp:
-                col = f.column
-                df_piaui = df_piaui[df_piaui[col] == f]
+        # PIAUÍ (apenas se COD_UF existir - 2025+)
+        res_piaui = None
+        if tem_cod_uf:
+            with col_piaui:
+                st.markdown("#### 🏛️ Piauí")
+                df_piaui = analisador.df.copy()
+                df_piaui = df_piaui[df_piaui['COD_UF'] == MetadadosIndividuos.COD_UF.PIAUI]
+                for f in filtros_comp:
+                    col = f.column
+                    df_piaui = df_piaui[df_piaui[col] == f]
 
-            res_piaui = analisador.analisar_indicador(actual_indicador, df_contexto=df_piaui)
+                res_piaui = analisador.analisar_indicador(actual_indicador, df_contexto=df_piaui)
 
-            if res_piaui is not None and len(res_piaui) > 0:
-                st.metric("📊 Registros", f"{len(df_piaui):,}")
+                if res_piaui is not None and len(res_piaui) > 0:
+                    st.metric("📊 Registros", f"{len(df_piaui):,}")
 
-                # Mostrar KPI principal
-                if not is_multiple:
-                    sim_row = res_piaui[res_piaui['Descrição'] == 'Sim']
-                    if not sim_row.empty:
-                        st.metric("✅ Sim", sim_row['Percentual'].values[0])
-                else:
+                    # Mostrar KPI principal
+                    if not is_multiple:
+                        sim_row = res_piaui[res_piaui['Descrição'] == 'Sim']
+                        if not sim_row.empty:
+                            st.metric("✅ Sim", sim_row['Percentual'].values[0])
+                    else:
+                        chart_data = res_piaui.copy()
+                        chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
+                        top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
+                        st.metric("🏆 Maior", f"{top_row['Percentual']}")
+                        st.caption(top_row['Descrição'])
+
+                    # Gráfico de barras
                     chart_data = res_piaui.copy()
                     chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
-                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
-                    st.metric("🏆 Maior", f"{top_row['Percentual']}")
-                    st.caption(top_row['Descrição'])
+                    st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
 
-                # Gráfico de barras
-                chart_data = res_piaui.copy()
-                chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
-                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
-
-                with st.expander("📋 Ver Dados Completos"):
-                    st.dataframe(res_piaui, use_container_width=True)
-            else:
-                st.warning("Sem dados")
+                    with st.expander("📋 Ver Dados Completos"):
+                        st.dataframe(res_piaui, use_container_width=True)
+                else:
+                    st.warning("Sem dados")
 
         # Gráfico comparativo consolidado
         st.markdown("---")
         st.markdown("### 📊 Visão Consolidada")
 
-        if res_brasil is not None and res_nordeste is not None and res_piaui is not None:
+        # Verificar quais resultados estão disponíveis
+        tem_brasil = res_brasil is not None and len(res_brasil) > 0
+        tem_nordeste = res_nordeste is not None and len(res_nordeste) > 0
+        tem_piaui = res_piaui is not None and len(res_piaui) > 0
+
+        if tem_brasil and tem_nordeste:
             # Criar dataframe comparativo
             df_comp_list = []
 
@@ -438,12 +498,13 @@ if len(df_filtrado) > 0:
                     'Percentual': float(row['Percentual'].replace('%', ''))
                 })
 
-            for idx, row in res_piaui.iterrows():
-                df_comp_list.append({
-                    'Região': 'Piauí',
-                    'Categoria': row['Descrição'],
-                    'Percentual': float(row['Percentual'].replace('%', ''))
-                })
+            if tem_piaui:
+                for idx, row in res_piaui.iterrows():
+                    df_comp_list.append({
+                        'Região': 'Piauí',
+                        'Categoria': row['Descrição'],
+                        'Percentual': float(row['Percentual'].replace('%', ''))
+                    })
 
             df_comparativo = pd.DataFrame(df_comp_list)
 
@@ -454,6 +515,7 @@ if len(df_filtrado) > 0:
             st.dataframe(df_pivot, use_container_width=True)
 
             # Exportar comparativo
+            st.markdown("---")
             col_exp1, col_exp2 = st.columns(2)
             with col_exp1:
                 csv_comp = df_comparativo.to_csv(index=False).encode('utf-8')
@@ -463,6 +525,237 @@ if len(df_filtrado) > 0:
                     file_name=f"comparativo_br_ne_pi_{selected_indicador_key}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
                     mime="text/csv"
                 )
+        else:
+            st.warning("Dados insuficientes para comparação")
+
+    with tab_agregadores:
+        st.markdown("### 📊 Análise por Agregadores")
+        st.markdown("Visualize o indicador agregado por diferentes dimensões demográficas e geográficas.")
+
+        # Verificar disponibilidade de campos para agregação
+        tem_cod_uf = 'COD_UF' in analisador.df.columns
+
+        # Seletor de agregador
+        agregadores_disponiveis = []
+        agregadores_map = {}
+
+        # AGREGADORES GEOGRÁFICOS
+        if verificar_metadado_disponivel('COD_REGIAO_2'):
+            agregadores_disponiveis.append("Região")
+            agregadores_map["Região"] = ('COD_REGIAO_2', MetadadosIndividuos.COD_REGIAO_2)
+
+        if tem_cod_uf:
+            agregadores_disponiveis.append("UF (Estado)")
+            agregadores_map["UF (Estado)"] = ('COD_UF', MetadadosIndividuos.COD_UF)
+
+        if verificar_metadado_disponivel('AREA'):
+            agregadores_disponiveis.append("Área (Urbana/Rural)")
+            agregadores_map["Área (Urbana/Rural)"] = ('AREA', MetadadosIndividuos.AREA)
+
+        # AGREGADORES SOCIOECONÔMICOS
+        if verificar_metadado_disponivel('CLASSE_2015'):
+            agregadores_disponiveis.append("Classe Social")
+            agregadores_map["Classe Social"] = ('CLASSE_2015', MetadadosIndividuos.CLASSE_2015)
+
+        if verificar_metadado_disponivel('RENDA_FAMILIAR_2'):
+            agregadores_disponiveis.append("Renda Familiar")
+            agregadores_map["Renda Familiar"] = ('RENDA_FAMILIAR_2', MetadadosIndividuos.RENDA_FAMILIAR_2)
+
+        if verificar_metadado_disponivel('RENDA_PESSOAL'):
+            agregadores_disponiveis.append("Renda Pessoal")
+            agregadores_map["Renda Pessoal"] = ('RENDA_PESSOAL', MetadadosIndividuos.RENDA_PESSOAL)
+
+        # AGREGADORES DEMOGRÁFICOS
+        if verificar_metadado_disponivel('SEXO'):
+            agregadores_disponiveis.append("Sexo")
+            agregadores_map["Sexo"] = ('SEXO', MetadadosIndividuos.SEXO)
+
+        if verificar_metadado_disponivel('IDADE'):
+            agregadores_disponiveis.append("Idade")
+            agregadores_map["Idade"] = ('IDADE', MetadadosIndividuos.IDADE)
+
+        if verificar_metadado_disponivel('FAIXA_ETARIA'):
+            agregadores_disponiveis.append("Faixa Etária")
+            agregadores_map["Faixa Etária"] = ('FAIXA_ETARIA', MetadadosIndividuos.FAIXA_ETARIA)
+
+        if verificar_metadado_disponivel('RACA'):
+            agregadores_disponiveis.append("Raça/Cor")
+            agregadores_map["Raça/Cor"] = ('RACA', MetadadosIndividuos.RACA)
+
+        # AGREGADORES EDUCACIONAIS
+        if verificar_metadado_disponivel('GRAU_INSTRUCAO_1'):
+            agregadores_disponiveis.append("Grau de Instrução")
+            agregadores_map["Grau de Instrução"] = ('GRAU_INSTRUCAO_1', MetadadosIndividuos.GRAU_INSTRUCAO_1)
+
+        # AGREGADORES DE TRABALHO
+        if verificar_metadado_disponivel('PEA'):
+            agregadores_disponiveis.append("Condição de Atividade (PEA)")
+            agregadores_map["Condição de Atividade (PEA)"] = ('PEA', MetadadosIndividuos.PEA)
+
+        if verificar_metadado_disponivel('OCUP_12'):
+            agregadores_disponiveis.append("Tipo de Ocupação")
+            agregadores_map["Tipo de Ocupação"] = ('OCUP_12', MetadadosIndividuos.OCUP_12)
+
+        if verificar_metadado_disponivel('APOSENT'):
+            agregadores_disponiveis.append("Aposentado")
+            agregadores_map["Aposentado"] = ('APOSENT', MetadadosIndividuos.APOSENT)
+
+        if not agregadores_disponiveis:
+            st.warning("⚠️ Nenhum agregador disponível para este ano")
+        else:
+            col_agg1, col_agg2 = st.columns([2, 1])
+
+            with col_agg1:
+                selected_agregador = st.selectbox(
+                    "📂 Selecione o agregador",
+                    options=agregadores_disponiveis,
+                    help="Escolha a dimensão pela qual deseja agregar os dados"
+                )
+
+            with col_agg2:
+                mostrar_grafico = st.checkbox("📈 Mostrar Gráfico", value=True)
+
+            st.markdown("---")
+
+            # Obter campo e metadados do agregador selecionado
+            campo_agregador, meta_agregador = agregadores_map[selected_agregador]
+
+            # Criar análise agregada
+            df_trabalho = analisador.df.copy()
+
+            # Aplicar filtros da sidebar (exceto o próprio agregador)
+            filtros_agg = []
+
+            # Adicionar filtros que não sejam o agregador atual
+            if campo_agregador != 'CLASSE_2015':
+                f_class = get_meta_value(MetadadosIndividuos.CLASSE_2015, classes, selected_class_label)
+                if f_class: filtros_agg.append(f_class)
+
+            if campo_agregador != 'RENDA_FAMILIAR_2':
+                f_renda = get_meta_value(MetadadosIndividuos.RENDA_FAMILIAR_2, rendas, selected_renda_label)
+                if f_renda: filtros_agg.append(f_renda)
+
+            if campo_agregador != 'SEXO':
+                f_sexo = get_meta_value(MetadadosIndividuos.SEXO, sexos, selected_sexo_label)
+                if f_sexo: filtros_agg.append(f_sexo)
+
+            if campo_agregador != 'FAIXA_ETARIA':
+                f_faixa = get_meta_value(MetadadosIndividuos.FAIXA_ETARIA, faixas_etarias, selected_faixa_label)
+                if f_faixa: filtros_agg.append(f_faixa)
+
+            if campo_agregador != 'COD_REGIAO_2':
+                f_regiao = get_meta_value(MetadadosIndividuos.COD_REGIAO_2, regioes, selected_regiao_label)
+                if f_regiao: filtros_agg.append(f_regiao)
+
+            # Aplicar filtros
+            for f in filtros_agg:
+                col = f.column
+                df_trabalho = df_trabalho[df_trabalho[col] == f]
+
+            # Criar resultado agregado
+            resultados_agregados = []
+
+            # Obter valores únicos do agregador
+            valores_agregador = sorted(df_trabalho[campo_agregador].unique())
+
+            for valor in valores_agregador:
+                # Filtrar por este valor
+                df_grupo = df_trabalho[df_trabalho[campo_agregador] == valor]
+
+                # Analisar indicador para este grupo
+                res_grupo = analisador.analisar_indicador(actual_indicador, df_contexto=df_grupo)
+
+                if res_grupo is not None and len(res_grupo) > 0:
+                    # Obter label do valor
+                    label_valor = meta_agregador._map.get(valor, str(valor))
+
+                    # Para cada linha do resultado
+                    for idx, row in res_grupo.iterrows():
+                        resultados_agregados.append({
+                            selected_agregador: label_valor,
+                            'Categoria': row['Descrição'],
+                            'Total': row['Total'],
+                            'Percentual': row['Percentual'],
+                            'Percentual_Num': float(row['Percentual'].replace('%', ''))
+                        })
+
+            if resultados_agregados:
+                df_agregado = pd.DataFrame(resultados_agregados)
+
+                # Mostrar métricas resumidas
+                st.markdown(f"#### 📈 Análise por {selected_agregador}")
+
+                col_m1, col_m2, col_m3 = st.columns(3)
+                with col_m1:
+                    st.metric("🔢 Grupos", len(valores_agregador))
+                with col_m2:
+                    st.metric("📊 Total de Registros", f"{len(df_trabalho):,}")
+                with col_m3:
+                    categorias_unicas = df_agregado['Categoria'].nunique()
+                    st.metric("📋 Categorias", categorias_unicas)
+
+                st.markdown("---")
+
+                # Criar visualizações
+                if mostrar_grafico:
+                    # Para indicadores binários (Sim/Não), mostrar apenas "Sim"
+                    if not is_multiple and 'Sim' in df_agregado['Categoria'].values:
+                        df_grafico = df_agregado[df_agregado['Categoria'] == 'Sim'].copy()
+                        df_grafico = df_grafico.sort_values('Percentual_Num', ascending=False)
+
+                        st.markdown("##### 📊 Percentual de 'Sim' por " + selected_agregador)
+                        st.bar_chart(df_grafico, x=selected_agregador, y='Percentual_Num', height=400)
+                    else:
+                        # Para indicadores múltiplos, mostrar gráfico agrupado
+                        st.markdown("##### 📊 Distribuição por Categoria")
+                        df_pivot_grafico = df_agregado.pivot(
+                            index=selected_agregador,
+                            columns='Categoria',
+                            values='Percentual_Num'
+                        )
+                        st.bar_chart(df_pivot_grafico, height=400)
+
+                # Tabela detalhada
+                st.markdown("##### 📋 Dados Detalhados")
+
+                # Criar tabela pivotada para melhor visualização
+                df_pivot_tabela = df_agregado.pivot_table(
+                    index=selected_agregador,
+                    columns='Categoria',
+                    values='Percentual',
+                    aggfunc='first'
+                )
+
+                st.dataframe(df_pivot_tabela, use_container_width=True)
+
+                # Botão de download
+                st.markdown("---")
+                csv_agregado = df_agregado.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label=f"📥 Download Análise por {selected_agregador} (CSV)",
+                    data=csv_agregado,
+                    file_name=f"agregado_{selected_agregador.lower().replace(' ', '_')}_{selected_indicador_key}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+
+                # Insights automáticos
+                with st.expander("💡 Insights"):
+                    if not is_multiple and 'Sim' in df_agregado['Categoria'].values:
+                        df_sim = df_agregado[df_agregado['Categoria'] == 'Sim'].copy()
+                        df_sim = df_sim.sort_values('Percentual_Num', ascending=False)
+
+                        maior = df_sim.iloc[0]
+                        menor = df_sim.iloc[-1]
+
+                        st.markdown(f"""
+                        - **Maior percentual:** {maior[selected_agregador]} com {maior['Percentual']}
+                        - **Menor percentual:** {menor[selected_agregador]} com {menor['Percentual']}
+                        - **Diferença:** {maior['Percentual_Num'] - menor['Percentual_Num']:.1f} pontos percentuais
+                        """)
+                    else:
+                        st.markdown(f"Análise detalhada disponível para {len(valores_agregador)} grupos de {selected_agregador}")
+            else:
+                st.warning("Nenhum dado disponível para agregação com os filtros selecionados")
 
     with tab_customizado:
         st.markdown("### 🔍 Análise com Filtros Personalizados")
