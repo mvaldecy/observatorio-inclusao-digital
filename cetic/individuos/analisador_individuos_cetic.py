@@ -79,6 +79,25 @@ class AnalisadorIndividuosCETIC:
     def analisar_indicador(self, indicador, df_contexto=None):
         df = df_contexto if df_contexto is not None else self.df
         
+        if df.empty:
+            return None
+
+        # FILTRAR "Não se aplica" (99.0) de TODAS as colunas relevantes no DataFrame
+        # Isso garante que independente dos filtros aplicados antes, nunca contaremos 99.0
+        if isinstance(indicador, list):
+            # Para análise múltipla, filtrar 99.0 de cada indicador da lista
+            for ind in indicador:
+                if ind in df.columns:
+                    df = df[df[ind] != 99.0]
+        else:
+            # Para análise simples, filtrar 99.0 do indicador específico
+            if indicador in df.columns:
+                df = df[df[indicador] != 99.0]
+
+        if df.empty:
+            print(f"Aviso: Todos os valores são 'Não se aplica' após filtragem.")
+            return None
+
         if isinstance(indicador, list):
             # Análise múltipla (ex: múltiplos dispositivos)
             resumo = []
@@ -88,7 +107,7 @@ class AnalisadorIndividuosCETIC:
                 
                 # Considera apenas o valor 'Sim' (1.0) para comparação
                 sim_count = (df[ind] == 1.0).sum()
-                total = len(df)
+                total = len(df)  # Total JÁ sem "Não se aplica"
                 percent = (sim_count / total) * 100 if total > 0 else 0
                 
                 resumo.append({
@@ -102,10 +121,11 @@ class AnalisadorIndividuosCETIC:
         if indicador not in df.columns:
             print(f"Erro: Indicador '{indicador}' não encontrado.")
             return None
-            
+
+        # Contagem de valores (já filtrado 99.0 acima)
         counts = df[indicador].value_counts().sort_index()
-        total = len(df)
-        
+        total = len(df)  # Total JÁ sem "Não se aplica"
+
         meta_col = getattr(MetadadosIndividuos, indicador, None)
         label_col = getattr(meta_col, '_label', indicador) if meta_col else indicador
         labels_valores = getattr(meta_col, '_map', {}) if meta_col else {}
@@ -113,6 +133,9 @@ class AnalisadorIndividuosCETIC:
         resumo = []
         for val, count in counts.items():
             label = labels_valores.get(val, "Não categorizado")
+            # Pular "Não se aplica" se ainda aparecer (proteção adicional)
+            if label.lower() == 'não se aplica':
+                continue
             percent = (count / total) * 100 if total > 0 else 0
             resumo.append({
                 'Descrição': label,
