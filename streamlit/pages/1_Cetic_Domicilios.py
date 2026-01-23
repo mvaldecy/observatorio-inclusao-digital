@@ -14,6 +14,7 @@ from utils.data_loader import get_analisador_domicilios
 from utils.http_loader import HTTPDataLoader
 from cetic.domicilios.metadados import Metadados
 from components.categorias_cetic import CATEGORIAS_DOMICILIO
+from components.header import render_header
 
 st.set_page_config(page_title="Cetic Domicílios", layout="wide")
 
@@ -71,9 +72,7 @@ except Exception as e:
     st.info("💡 **Dica:** Verifique sua conexão com a internet ou tente limpar o cache.")
     st.stop()
 
-st.title(f"📊 CETIC - TIC Domicílios {ano_selecionado}")
-
-
+render_header(f"CETIC - TIC Domicílios {ano_selecionado}", "📊")
 
 # Contar indicadores
 total_indicadores = sum(1 for cat in CATEGORIAS_DOMICILIO.values() for k, v in cat.items() if isinstance(v, str))

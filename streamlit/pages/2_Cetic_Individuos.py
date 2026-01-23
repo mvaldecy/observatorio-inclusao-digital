@@ -14,6 +14,7 @@ from utils.data_loader import get_analisador_individuos
 from utils.http_loader import HTTPDataLoader
 from cetic.individuos.metadados_individuos import MetadadosIndividuos
 from components.categorias_cetic import CATEGORIAS_INDIVIDUOS
+from components.header import render_header
 
 st.set_page_config(page_title="Cetic Indivíduos", layout="wide")
 
@@ -71,7 +72,7 @@ except Exception as e:
     st.info("💡 **Dica:** Verifique sua conexão com a internet ou tente limpar o cache.")
     st.stop()
 
-st.title(f"📊 CETIC - TIC Indivíduos {ano_selecionado}")
+render_header(f"CETIC - TIC Indivíduos {ano_selecionado}", "📊")
 
 # Usa categorias importadas do arquivo centralizado
 CATEGORIAS = CATEGORIAS_INDIVIDUOS

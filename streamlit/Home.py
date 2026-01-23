@@ -1,4 +1,13 @@
 import streamlit as st
+import sys
+import os
+
+# Adiciona o diretório streamlit ao path
+streamlit_path = os.path.dirname(__file__)
+if streamlit_path not in sys.path:
+    sys.path.append(streamlit_path)
+
+from components.header import render_header
 
 st.set_page_config(
     page_title="Observatório",
@@ -6,7 +15,8 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🌐 Observatório de Inclusão Digital")
+# Renderizar header com logo
+render_header("Observatório de Inclusão Digital", "🌐")
 
 st.markdown("""
 Bem-vindo ao Dashboard do Observatório de Inclusão Digital.
