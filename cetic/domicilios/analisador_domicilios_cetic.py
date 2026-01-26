@@ -4,7 +4,7 @@ try:
     from cetic.domicilios.metadados import Metadados
 except ImportError:
     from metadados import Metadados
-
+ # ignore
 class AnalisadorDomiciliosCETIC:
     def __init__(self, data_path=None, ano: int = 2025, df=None, meta=None):
         """
