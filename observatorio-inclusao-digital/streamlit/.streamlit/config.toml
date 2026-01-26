@@ -1,0 +1,8 @@
+[server]
+maxMessageSize = 500
+
+[client]
+showErrorDetails = true
+
+[logger]
+level = "info"

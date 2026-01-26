@@ -1,0 +1,4 @@
+build-essential
+libreadstat-dev
+zlib1g-dev
+
