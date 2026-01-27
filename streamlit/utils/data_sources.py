@@ -23,15 +23,14 @@ DATA_SOURCES = {
             }
         }
     },
-    # Futuramente outras fontes:
-    # 'anatel': {
-    #     'name': 'ANATEL - Agência Nacional de Telecomunicações',
-    #     'description': 'Dados de telecomunicações e telefonia',
-    #     'website': 'https://www.gov.br/anatel',
-    #     'urls': {
-    #         2024: {...}
-    #     }
-    # },
+     'anatel': {
+         'name': 'ANATEL - Agência Nacional de Telecomunicações',
+         'description': 'Dados de telecomunicações e telefonia',
+         'website': 'https://www.gov.br/anatel',
+         'urls': {
+             2024: {...}
+         }
+     },
     # 'ibge': {
     #     'name': 'IBGE - Instituto Brasileiro de Geografia e Estatística',
     #     'description': 'Dados demográficos e socioeconômicos',
