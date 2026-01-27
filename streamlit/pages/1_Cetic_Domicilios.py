@@ -12,9 +12,11 @@ for p in [root_path, streamlit_path]:
 
 from utils.data_loader import get_analisador_domicilios
 from utils.http_loader import HTTPDataLoader
+from utils.filtro_helper import FiltroHelper
 from cetic.domicilios.metadados import Metadados
 from components.categorias_cetic import CATEGORIAS_DOMICILIO
 from components.header import render_header
+from components.comparativo_geografico import ComparativoGeografico
 
 st.set_page_config(page_title="Cetic Domicílios", layout="wide")
 
@@ -179,18 +181,13 @@ def limpar_filtros():
     st.session_state['renda_dom'] = "Todas"
     st.session_state['regiao_dom'] = "Brasil"
 
-# Função auxiliar para verificar disponibilidade de metadados
-def verificar_metadado_disponivel(nome_campo):
-    try:
-        campo = getattr(Metadados, nome_campo, None)
-        return campo is not None and hasattr(campo, '_map') and len(campo._map) > 0
-    except:
-        return False
+# Criar instância do helper
+filtro_helper = FiltroHelper()
 
 # Filtro de UF
-if verificar_metadado_disponivel('COD_UF'):
+if filtro_helper.verificar_metadado_disponivel(Metadados, 'COD_UF'):
     ufs = Metadados.COD_UF._map
-    uf_options = ["Brasil"] + list(ufs.values())
+    uf_options = filtro_helper.get_opcoes_select(Metadados.COD_UF, "Brasil")
     selected_uf_label = st.sidebar.selectbox("UF", uf_options, key='uf_dom')
 else:
     st.sidebar.warning(f"⚠️ Filtro de UF indisponível em {ano_selecionado}")
@@ -198,9 +195,9 @@ else:
     ufs = {}
 
 # Filtro de Área
-if verificar_metadado_disponivel('AREA'):
+if filtro_helper.verificar_metadado_disponivel(Metadados, 'AREA'):
     areas = Metadados.AREA._map
-    area_options = ["Todas"] + list(areas.values())
+    area_options = filtro_helper.get_opcoes_select(Metadados.AREA, "Todas")
     selected_area_label = st.sidebar.selectbox("Área", area_options, key='area_dom')
 else:
     st.sidebar.warning(f"⚠️ Filtro de Área indisponível em {ano_selecionado}")
@@ -208,9 +205,9 @@ else:
     areas = {}
 
 # Filtro de Classe Social
-if verificar_metadado_disponivel('CLASSE_2015'):
+if filtro_helper.verificar_metadado_disponivel(Metadados, 'CLASSE_2015'):
     classes = Metadados.CLASSE_2015._map
-    class_options = ["Todas"] + list(classes.values())
+    class_options = filtro_helper.get_opcoes_select(Metadados.CLASSE_2015, "Todas")
     selected_class_label = st.sidebar.selectbox("Classe Social", class_options, key='classe_dom')
 else:
     st.sidebar.warning(f"⚠️ Filtro de Classe Social indisponível em {ano_selecionado}")
@@ -218,9 +215,9 @@ else:
     classes = {}
 
 # Filtro de Renda Familiar
-if verificar_metadado_disponivel('RENDA_FAMILIAR_2'):
+if filtro_helper.verificar_metadado_disponivel(Metadados, 'RENDA_FAMILIAR_2'):
     rendas = Metadados.RENDA_FAMILIAR_2._map
-    renda_options = ["Todas"] + list(rendas.values())
+    renda_options = filtro_helper.get_opcoes_select(Metadados.RENDA_FAMILIAR_2, "Todas")
     selected_renda_label = st.sidebar.selectbox("Renda Familiar", renda_options, key='renda_dom')
 else:
     st.sidebar.warning(f"⚠️ Filtro de Renda Familiar indisponível em {ano_selecionado}")
@@ -228,9 +225,9 @@ else:
     rendas = {}
 
 # Filtro de Região
-if verificar_metadado_disponivel('COD_REGIAO_2'):
+if filtro_helper.verificar_metadado_disponivel(Metadados, 'COD_REGIAO_2'):
     regioes = Metadados.COD_REGIAO_2._map
-    regiao_options = ["Brasil"] + list(regioes.values())
+    regiao_options = filtro_helper.get_opcoes_select(Metadados.COD_REGIAO_2, "Brasil")
     selected_regiao_label = st.sidebar.selectbox("Região", regiao_options, key='regiao_dom')
 else:
     st.sidebar.warning(f"⚠️ Filtro de Região indisponível em {ano_selecionado}")
@@ -239,62 +236,31 @@ else:
 
 st.sidebar.button("Limpar filtros", on_click=limpar_filtros)
 
-# Preparar filtros para o analisador
+# Preparar filtros para o analisador usando FiltroHelper
 filtros = []
 
-def get_meta_value(meta_class, label_map, selected_label):
-    if selected_label == "Todas" or selected_label == "Brasil":
-        return None
-    if not label_map:  # Se o mapa está vazio, retorna None
-        return None
-    try:
-        val = [k for k, v in label_map.items() if v == selected_label]
-        if not val:
-            return None
-        val = val[0]
-        for attr in dir(meta_class):
-            meta_val = getattr(meta_class, attr)
-            if isinstance(meta_val, float) and meta_val == val:
-                return meta_val
-    except:
-        return None
-    return None
-
-f_uf = get_meta_value(Metadados.COD_UF, ufs, selected_uf_label)
+f_uf = filtro_helper.get_meta_value(Metadados.COD_UF, ufs, selected_uf_label)
 if f_uf: filtros.append(f_uf)
 
-f_area = get_meta_value(Metadados.AREA, areas, selected_area_label)
+f_area = filtro_helper.get_meta_value(Metadados.AREA, areas, selected_area_label)
 if f_area: filtros.append(f_area)
 
-f_class = get_meta_value(Metadados.CLASSE_2015, classes, selected_class_label)
+f_class = filtro_helper.get_meta_value(Metadados.CLASSE_2015, classes, selected_class_label)
 if f_class: filtros.append(f_class)
 
-f_renda = get_meta_value(Metadados.RENDA_FAMILIAR_2, rendas, selected_renda_label)
+f_renda = filtro_helper.get_meta_value(Metadados.RENDA_FAMILIAR_2, rendas, selected_renda_label)
 if f_renda: filtros.append(f_renda)
 
-f_regiao = get_meta_value(Metadados.COD_REGIAO_2, regioes, selected_regiao_label)
+f_regiao = filtro_helper.get_meta_value(Metadados.COD_REGIAO_2, regioes, selected_regiao_label)
 if f_regiao: filtros.append(f_regiao)
 
 # Executar análise
-# Criamos uma cópia do dataframe para não afetar o original no analisador (que é cacheado)
-df_filtrado = analisador.df.copy()
-total_original = len(df_filtrado)
+# Aplicar filtros usando helper
+df_filtrado = filtro_helper.aplicar_filtros(analisador.df, filtros)
+total_original = len(analisador.df)
 
-# Aplicar os filtros
-for f in filtros:
-    col = f.column
-    df_filtrado = df_filtrado[df_filtrado[col] == f]
-
-# Mostrar informações de filtros de forma mais visual
-filtros_ativos = []
-if len(filtros) > 0:
-    for f in filtros:
-        col = f.column
-        meta_class = getattr(Metadados, col, None)
-        if meta_class and hasattr(meta_class, '_map'):
-            label = meta_class._map.get(float(f), str(f))
-            col_name = getattr(meta_class, '_label', col)
-            filtros_ativos.append(f"**{col_name}:** {label}")
+# Mostrar informações de filtros usando helper
+filtros_ativos = filtro_helper.criar_descricao_filtros(filtros, Metadados)
 
 # Layout melhorado com métricas
 col_info1, col_info2, col_info3 = st.columns(3)
@@ -326,7 +292,6 @@ if len(df_filtrado) > 0:
     tab_comparativo, tab_agregadores, tab_customizado = st.tabs(["🗺️ Comparativo Geográfico", "📊 Agregadores", "🔍 Análise Customizada"])
 
     with tab_comparativo:
-        st.markdown("### 📍 Comparação: Brasil | Nordeste | Piauí")
         st.markdown("Visualização fixa das três regiões de interesse. Você pode aplicar filtros adicionais abaixo.")
 
         # Sub-filtros para o comparativo geográfico
@@ -335,211 +300,40 @@ if len(df_filtrado) > 0:
 
         with col_f1:
             # Filtro de Área para comparativo
-            area_comp_options = ["Todas"] + list(areas.values())
+            area_comp_options = filtro_helper.get_opcoes_select(Metadados.AREA, "Todas")
             selected_area_comp = st.selectbox("🏘️ Área", area_comp_options, key='area_comp')
 
         with col_f2:
             # Filtro de Classe para comparativo
-            class_comp_options = ["Todas"] + list(classes.values())
+            class_comp_options = filtro_helper.get_opcoes_select(Metadados.CLASSE_2015, "Todas")
             selected_class_comp = st.selectbox("💼 Classe Social", class_comp_options, key='classe_comp')
 
         with col_f3:
             # Filtro de Renda para comparativo
-            renda_comp_options = ["Todas"] + list(rendas.values())
+            renda_comp_options = filtro_helper.get_opcoes_select(Metadados.RENDA_FAMILIAR_2, "Todas")
             selected_renda_comp = st.selectbox("💰 Renda Familiar", renda_comp_options, key='renda_comp')
 
         with col_f4:
             if st.button("🔄 Resetar Filtros Comparativo", key='reset_comp'):
                 st.rerun()
 
-        # Aplicar filtros adicionais ao comparativo
+        # Aplicar filtros adicionais ao comparativo usando FiltroHelper
         filtros_comp = []
 
-        f_area_comp = get_meta_value(Metadados.AREA, areas, selected_area_comp)
+        f_area_comp = filtro_helper.get_meta_value(Metadados.AREA, areas, selected_area_comp)
         if f_area_comp: filtros_comp.append(f_area_comp)
 
-        f_class_comp = get_meta_value(Metadados.CLASSE_2015, classes, selected_class_comp)
+        f_class_comp = filtro_helper.get_meta_value(Metadados.CLASSE_2015, classes, selected_class_comp)
         if f_class_comp: filtros_comp.append(f_class_comp)
 
-        f_renda_comp = get_meta_value(Metadados.RENDA_FAMILIAR_2, rendas, selected_renda_comp)
+        f_renda_comp = filtro_helper.get_meta_value(Metadados.RENDA_FAMILIAR_2, rendas, selected_renda_comp)
         if f_renda_comp: filtros_comp.append(f_renda_comp)
 
         st.markdown("---")
 
-        # Verificar se COD_UF existe no dataset (só existe em 2025+)
-        tem_cod_uf = 'COD_UF' in analisador.df.columns
-
-        # Análises para Brasil, Nordeste e Piauí (se disponível)
-        if tem_cod_uf:
-            col_brasil, col_nordeste, col_piaui = st.columns(3)
-        else:
-            col_brasil, col_nordeste = st.columns(2)
-            st.info("ℹ️ Dados por estado (Piauí) disponíveis apenas a partir de 2025")
-
-        # BRASIL
-        with col_brasil:
-            st.markdown("#### 🇧🇷 Brasil")
-            df_brasil = analisador.df.copy()
-            for f in filtros_comp:
-                col = f.column
-                df_brasil = df_brasil[df_brasil[col] == f]
-
-            res_brasil = analisador.analisar_indicador(actual_indicador, df_contexto=df_brasil)
-
-            if res_brasil is not None and len(res_brasil) > 0:
-                st.metric("📊 Registros", f"{len(df_brasil):,}")
-
-                # Mostrar KPI principal
-                if not is_multiple:
-                    sim_row = res_brasil[res_brasil['Descrição'] == 'Sim']
-                    if not sim_row.empty:
-                        st.metric("✅ Sim", sim_row['Percentual'].values[0])
-                else:
-                    chart_data = res_brasil.copy()
-                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
-                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
-                    st.metric("🏆 Maior", f"{top_row['Percentual']}")
-                    st.caption(top_row['Descrição'])
-
-                # Gráfico de barras
-                chart_data = res_brasil.copy()
-                chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
-                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
-
-                with st.expander("📋 Ver Dados Completos"):
-                    st.dataframe(res_brasil, use_container_width=True)
-            else:
-                st.warning("Sem dados")
-
-        # NORDESTE
-        with col_nordeste:
-            st.markdown("#### 🌴 Nordeste")
-            df_nordeste = analisador.df.copy()
-            df_nordeste = df_nordeste[df_nordeste['COD_REGIAO_2'] == Metadados.COD_REGIAO_2.NORDESTE]
-            for f in filtros_comp:
-                col = f.column
-                df_nordeste = df_nordeste[df_nordeste[col] == f]
-
-            res_nordeste = analisador.analisar_indicador(actual_indicador, df_contexto=df_nordeste)
-
-            if res_nordeste is not None and len(res_nordeste) > 0:
-                st.metric("📊 Registros", f"{len(df_nordeste):,}")
-
-                # Mostrar KPI principal
-                if not is_multiple:
-                    sim_row = res_nordeste[res_nordeste['Descrição'] == 'Sim']
-                    if not sim_row.empty:
-                        st.metric("✅ Sim", sim_row['Percentual'].values[0])
-                else:
-                    chart_data = res_nordeste.copy()
-                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
-                    top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
-                    st.metric("🏆 Maior", f"{top_row['Percentual']}")
-                    st.caption(top_row['Descrição'])
-
-                # Gráfico de barras
-                chart_data = res_nordeste.copy()
-                chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
-                st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
-
-                with st.expander("📋 Ver Dados Completos"):
-                    st.dataframe(res_nordeste, use_container_width=True)
-            else:
-                st.warning("Sem dados")
-
-        # PIAUÍ (apenas se COD_UF existir - 2025+)
-        res_piaui = None
-        if tem_cod_uf:
-            with col_piaui:
-                st.markdown("#### 🏛️ Piauí")
-                df_piaui = analisador.df.copy()
-                df_piaui = df_piaui[df_piaui['COD_UF'] == Metadados.COD_UF.PIAUI]
-                for f in filtros_comp:
-                    col = f.column
-                    df_piaui = df_piaui[df_piaui[col] == f]
-
-                res_piaui = analisador.analisar_indicador(actual_indicador, df_contexto=df_piaui)
-
-                if res_piaui is not None and len(res_piaui) > 0:
-                    st.metric("📊 Registros", f"{len(df_piaui):,}")
-
-                    # Mostrar KPI principal
-                    if not is_multiple:
-                        sim_row = res_piaui[res_piaui['Descrição'] == 'Sim']
-                        if not sim_row.empty:
-                            st.metric("✅ Sim", sim_row['Percentual'].values[0])
-                    else:
-                        chart_data = res_piaui.copy()
-                        chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
-                        top_row = chart_data.sort_values('Percentual_Num', ascending=False).iloc[0]
-                        st.metric("🏆 Maior", f"{top_row['Percentual']}")
-                        st.caption(top_row['Descrição'])
-
-                    # Gráfico de barras
-                    chart_data = res_piaui.copy()
-                    chart_data['Percentual_Num'] = chart_data['Percentual'].str.replace('%', '').astype(float)
-                    st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
-
-                    with st.expander("📋 Ver Dados Completos"):
-                        st.dataframe(res_piaui, use_container_width=True)
-                else:
-                    st.warning("Sem dados")
-
-        # Gráfico comparativo consolidado
-        st.markdown("---")
-        st.markdown("### 📊 Visão Consolidada")
-
-        # Verificar quais resultados estão disponíveis
-        tem_brasil = res_brasil is not None and len(res_brasil) > 0
-        tem_nordeste = res_nordeste is not None and len(res_nordeste) > 0
-        tem_piaui = res_piaui is not None and len(res_piaui) > 0
-
-        if tem_brasil and tem_nordeste:
-            # Criar dataframe comparativo
-            df_comp_list = []
-
-            for idx, row in res_brasil.iterrows():
-                df_comp_list.append({
-                    'Região': 'Brasil',
-                    'Categoria': row['Descrição'],
-                    'Percentual': float(row['Percentual'].replace('%', ''))
-                })
-
-            for idx, row in res_nordeste.iterrows():
-                df_comp_list.append({
-                    'Região': 'Nordeste',
-                    'Categoria': row['Descrição'],
-                    'Percentual': float(row['Percentual'].replace('%', ''))
-                })
-
-            if tem_piaui:
-                for idx, row in res_piaui.iterrows():
-                    df_comp_list.append({
-                        'Região': 'Piauí',
-                        'Categoria': row['Descrição'],
-                        'Percentual': float(row['Percentual'].replace('%', ''))
-                    })
-
-            df_comparativo = pd.DataFrame(df_comp_list)
-
-            # Criar pivot para tabela comparativa
-            df_pivot = df_comparativo.pivot(index='Categoria', columns='Região', values='Percentual')
-
-            # Tabela comparativa (sempre visível)
-            st.dataframe(df_pivot, use_container_width=True)
-
-            # Exportar comparativo
-            col_exp1, col_exp2 = st.columns(2)
-            with col_exp1:
-                csv_comp = df_comparativo.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 Download Comparativo (CSV)",
-                    data=csv_comp,
-                    file_name=f"comparativo_br_ne_pi_{selected_indicador_key}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv"
-                )
-        else:
-            st.warning("Dados insuficientes para comparação")
+        # Usar o componente reutilizável para o comparativo
+        comparativo = ComparativoGeografico(analisador, Metadados)
+        comparativo.renderizar(actual_indicador, filtros_comp, is_multiple)
 
     with tab_agregadores:
         st.markdown("### 📊 Análise por Agregadores")
@@ -552,19 +346,19 @@ if len(df_filtrado) > 0:
         agregadores_disponiveis = []
         agregadores_map = {}
 
-        if verificar_metadado_disponivel('CLASSE_2015'):
+        if filtro_helper.verificar_metadado_disponivel(Metadados, 'CLASSE_2015'):
             agregadores_disponiveis.append("Classe Social")
             agregadores_map["Classe Social"] = ('CLASSE_2015', Metadados.CLASSE_2015)
 
-        if verificar_metadado_disponivel('AREA'):
+        if filtro_helper.verificar_metadado_disponivel(Metadados, 'AREA'):
             agregadores_disponiveis.append("Área")
             agregadores_map["Área"] = ('AREA', Metadados.AREA)
 
-        if verificar_metadado_disponivel('RENDA_FAMILIAR_2'):
+        if filtro_helper.verificar_metadado_disponivel(Metadados, 'RENDA_FAMILIAR_2'):
             agregadores_disponiveis.append("Renda Familiar")
             agregadores_map["Renda Familiar"] = ('RENDA_FAMILIAR_2', Metadados.RENDA_FAMILIAR_2)
 
-        if verificar_metadado_disponivel('COD_REGIAO_2'):
+        if filtro_helper.verificar_metadado_disponivel(Metadados, 'COD_REGIAO_2'):
             agregadores_disponiveis.append("Região")
             agregadores_map["Região"] = ('COD_REGIAO_2', Metadados.COD_REGIAO_2)
 
@@ -600,19 +394,19 @@ if len(df_filtrado) > 0:
 
             # Adicionar filtros que não sejam o agregador atual
             if campo_agregador != 'AREA':
-                f_area = get_meta_value(Metadados.AREA, areas, selected_area_label)
+                f_area = filtro_helper.get_meta_value(Metadados.AREA, areas, selected_area_label)
                 if f_area: filtros_agg.append(f_area)
 
             if campo_agregador != 'CLASSE_2015':
-                f_class = get_meta_value(Metadados.CLASSE_2015, classes, selected_class_label)
+                f_class = filtro_helper.get_meta_value(Metadados.CLASSE_2015, classes, selected_class_label)
                 if f_class: filtros_agg.append(f_class)
 
             if campo_agregador != 'RENDA_FAMILIAR_2':
-                f_renda = get_meta_value(Metadados.RENDA_FAMILIAR_2, rendas, selected_renda_label)
+                f_renda = filtro_helper.get_meta_value(Metadados.RENDA_FAMILIAR_2, rendas, selected_renda_label)
                 if f_renda: filtros_agg.append(f_renda)
 
             if campo_agregador != 'COD_REGIAO_2':
-                f_regiao = get_meta_value(Metadados.COD_REGIAO_2, regioes, selected_regiao_label)
+                f_regiao = filtro_helper.get_meta_value(Metadados.COD_REGIAO_2, regioes, selected_regiao_label)
                 if f_regiao: filtros_agg.append(f_regiao)
 
             # Aplicar filtros

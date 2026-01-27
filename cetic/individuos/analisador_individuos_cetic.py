@@ -82,21 +82,19 @@ class AnalisadorIndividuosCETIC:
         if df.empty:
             return None
 
-        # FILTRAR "Não se aplica" (99.0) de TODAS as colunas relevantes no DataFrame
-        # Isso garante que independente dos filtros aplicados antes, nunca contaremos 99.0
-        if isinstance(indicador, list):
-            # Para análise múltipla, filtrar 99.0 de cada indicador da lista
-            for ind in indicador:
-                if ind in df.columns:
-                    df = df[df[ind] != 99.0]
-        else:
-            # Para análise simples, filtrar 99.0 do indicador específico
-            if indicador in df.columns:
-                df = df[df[indicador] != 99.0]
-
-        if df.empty:
-            print(f"Aviso: Todos os valores são 'Não se aplica' após filtragem.")
-            return None
+        # if isinstance(indicador, list):
+        #     # Para análise múltipla, filtrar 99.0 de cada indicador da lista
+        #     for ind in indicador:
+        #         if ind in df.columns:
+        #             df = df[df[ind] != 99.0]
+        # else:
+        #     # Para análise simples, filtrar 99.0 do indicador específico
+        #    if indicador in df.columns:
+        #         df = df[df[indicador] != 99.0]
+        #
+        # if df.empty:
+        #     print(f"Aviso: Todos os valores são 'Não se aplica' após filtragem.")
+        #     return None
 
         if isinstance(indicador, list):
             # Análise múltipla (ex: múltiplos dispositivos)
@@ -134,8 +132,8 @@ class AnalisadorIndividuosCETIC:
         for val, count in counts.items():
             label = labels_valores.get(val, "Não categorizado")
             # Pular "Não se aplica" se ainda aparecer (proteção adicional)
-            if label.lower() == 'não se aplica':
-                continue
+            # if label.lower() == 'não se aplica':
+            #    continue
             percent = (count / total) * 100 if total > 0 else 0
             resumo.append({
                 'Descrição': label,
@@ -172,6 +170,90 @@ class AnalisadorIndividuosCETIC:
         if res is not None:
             return res[['Descrição', 'Percentual']]
         return "Nenhum dado encontrado."
+
+    def analisar_por_agregador(self, indicador, campo_agregador: str, df_contexto=None):
+        """
+        Análise otimizada por agregador usando groupby.
+        Retorna resultados agregados para visualização em gráficos.
+
+        Args:
+            indicador: Campo ou lista de campos para análise
+            campo_agregador: Nome do campo para agregação (ex: 'RENDA_FAMILIAR', 'GRAU_INSTRUCAO')
+            df_contexto: DataFrame filtrado (opcional)
+
+        Returns:
+            DataFrame com resultados agregados por categoria do agregador
+        """
+        df = df_contexto if df_contexto is not None else self.df
+
+        if df.empty:
+            return None
+
+        if campo_agregador not in df.columns:
+            print(f"Erro: Campo agregador '{campo_agregador}' não encontrado.")
+            return None
+
+        # Obter metadados do agregador
+        meta_agregador = getattr(MetadadosIndividuos, campo_agregador, None)
+        if not meta_agregador:
+            print(f"Erro: Metadados para '{campo_agregador}' não encontrados.")
+            return None
+
+        label_agregador = getattr(meta_agregador, '_label', campo_agregador)
+        map_agregador = getattr(meta_agregador, '_map', {})
+
+        # Determinar se é análise simples ou múltipla
+        is_multiple = isinstance(indicador, list)
+        campos = [indicador] if not is_multiple else indicador
+
+        resultados = []
+
+        # Para cada valor único do agregador
+        for valor_agregador in sorted(df[campo_agregador].unique()):
+            # Filtrar dados para este valor
+            df_grupo = df[df[campo_agregador] == valor_agregador]
+            label_valor_agregador = map_agregador.get(valor_agregador, str(valor_agregador))
+
+            # Analisar cada campo
+            for campo in campos:
+                if campo not in df_grupo.columns:
+                    continue
+
+                meta_campo = getattr(MetadadosIndividuos, campo, None)
+                label_campo = getattr(meta_campo, '_label', campo) if meta_campo else campo
+                map_campo = getattr(meta_campo, '_map', {}) if meta_campo else {}
+
+                # Contar valores
+                contagens = df_grupo[campo].value_counts()
+                total_grupo = len(df_grupo)
+
+                for valor_campo, count in contagens.items():
+                    label_valor_campo = map_campo.get(valor_campo, str(valor_campo))
+                    percentual = (count / total_grupo * 100) if total_grupo > 0 else 0
+
+                    resultado = {
+                        label_agregador: label_valor_agregador,
+                        'Agregador_Valor': valor_agregador,
+                        'Total_Grupo': total_grupo,
+                    }
+
+                    if is_multiple:
+                        resultado['Indicador'] = label_campo
+
+                    resultado.update({
+                        'Categoria': label_valor_campo,
+                        'Valor': valor_campo,
+                        'Total': count,
+                        'Percentual': f"{percentual:.1f}%",
+                        'Percentual_Num': percentual
+                    })
+
+                    resultados.append(resultado)
+
+        if not resultados:
+            return None
+
+        return pd.DataFrame(resultados)
 
 if __name__ == "__main__":
     app = AnalisadorIndividuosCETIC()
