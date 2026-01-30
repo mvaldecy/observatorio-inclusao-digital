@@ -278,7 +278,6 @@ class HTTPDataLoader:
                     destino_parquet = ano_dir / f"{tipo}.parquet"
                     df.to_parquet(destino_parquet, compression='snappy', engine='pyarrow')
 
-
                 except Exception as e:
                     st.error(f"❌ Erro ao processar ano {ano}: {str(e)}")
                     sucesso_total = False
@@ -339,12 +338,11 @@ class HTTPDataLoader:
 
     def _carregar_anatel(self, ano: any, tipo: str, force_download: bool = False) -> Optional[Tuple[pd.DataFrame, any]]:
         """
-        Carrega dados da ANATEL
-        - Se ano == 'consolidado': baixa ZIP, processa todos os anos e retorna tudo consolidado
-        - Caso contrário: retorna apenas o ano específico do cache
+        Carrega dados da ANATEL de um ano específico
+        Se não existir em cache, baixa o ZIP (que contém todos os anos) e processa
 
         Args:
-            ano: Ano dos dados ou 'consolidado' para processar/carregar todos
+            ano: Ano dos dados (2022, 2023, 2024, 2025)
             tipo: Tipo dos dados (ex: 'conectividade-escola')
             force_download: Forçar download mesmo se existir cache
 
@@ -352,66 +350,48 @@ class HTTPDataLoader:
             Tupla (DataFrame, None) ou None se erro
         """
         fonte_dir = self.cache_dir / self.fonte
+        ano_dir = fonte_dir / str(ano)
+        parquet_path = ano_dir / f"{tipo}.parquet"
 
-        # Se ano == 'consolidado', processa o ZIP completo
-        if ano == 'consolidado':
-            # Verifica se já existe cache (parquets nas pastas por ano)
-            anos_disponiveis = sorted([d.name for d in fonte_dir.iterdir()
-                                      if d.is_dir() and d.name.isdigit()])
-
-            # Se não tem cache ou forçou download, baixa e processa
-            if not anos_disponiveis or force_download:
-                url = self.urls.get(ano, {}).get(tipo)
-                if not url:
-                    st.error(f"❌ URL não encontrada para {self.fonte}/{ano}/{tipo}")
-                    return None, None
-
-                # Baixa e processa o ZIP (cria parquets por ano)
-                if not self._download_and_extract_zip(url, tipo):
-                    return None, None
-
-                # Atualiza lista de anos disponíveis após download
-                anos_disponiveis = sorted([d.name for d in fonte_dir.iterdir()
-                                          if d.is_dir() and d.name.isdigit()])
-
-            # Carrega todos os anos disponíveis em cache
-            if not anos_disponiveis:
-                st.error("❌ Nenhum dado em cache após processamento")
-                return None, None
-
-            try:
-                dfs = []
-                for ano_dir_name in anos_disponiveis:
-                    parquet_path = fonte_dir / ano_dir_name / f"{tipo}.parquet"
-                    if parquet_path.exists():
-                        df_ano = pd.read_parquet(str(parquet_path))
-                        dfs.append(df_ano)
-
-                if dfs:
-                    df_consolidado = pd.concat(dfs, ignore_index=True)
-                    return df_consolidado, None
-                else:
-                    st.error("❌ Nenhum parquet encontrado em cache")
-                    return None, None
-            except Exception as e:
-                st.error(f"❌ Erro ao carregar dados consolidados: {str(e)}")
-                return None, None
-
-        # Para ano específico, apenas carrega do cache
-        else:
-            ano_dir = fonte_dir / str(ano)
-            parquet_path = ano_dir / f"{tipo}.parquet"
-
-            if not parquet_path.exists():
-                st.error(f"❌ Dados de {ano} não encontrados. Use ano='consolidado' para baixar todos os dados.")
-                return None, None
-
+        # Se existe cache e não forçou download, carrega direto
+        if parquet_path.exists() and not force_download:
             try:
                 df = pd.read_parquet(str(parquet_path))
                 return df, None
             except Exception as e:
-                st.error(f"❌ Erro ao carregar parquet do ano {ano}: {str(e)}")
+                st.error(f"❌ Erro ao carregar parquet: {str(e)}")
                 return None, None
+
+        # Se não existe cache ou forçou download, precisa baixar o ZIP
+        # O ZIP contém todos os anos, então busca da URL 'consolidado'
+        url = None
+
+        # Tenta pegar URL do ano específico primeiro
+        if ano in self.urls and tipo in self.urls[ano]:
+            url = self.urls[ano][tipo]
+        # Se não encontrar, tenta pegar de 'consolidado' (caso comum da ANATEL)
+        elif 'consolidado' in self.urls and tipo in self.urls['consolidado']:
+            url = self.urls['consolidado'][tipo]
+
+        if not url:
+            st.error(f"❌ URL não encontrada para {self.fonte}/{tipo}")
+            return None, None
+
+        # Baixa e processa o ZIP (cria parquets para TODOS os anos)
+        if not self._download_and_extract_zip(url, tipo):
+            return None, None
+
+        # Após processar, carrega o ano solicitado
+        if parquet_path.exists():
+            try:
+                df = pd.read_parquet(str(parquet_path))
+                return df, None
+            except Exception as e:
+                st.error(f"❌ Erro ao carregar parquet após download: {str(e)}")
+                return None, None
+        else:
+            st.error(f"❌ Dados de {ano} não foram encontrados no ZIP")
+            return None, None
 
     # =============================================================================
     # MÉTODOS ESPECÍFICOS DO CETIC
@@ -459,13 +439,15 @@ class HTTPDataLoader:
         Returns:
             Tupla (DataFrame, metadados) ou None se erro
         """
-        if ano not in self.urls:
-            st.error(f"❌ Dados de {ano} ainda não disponíveis para {self.fonte}")
-            return None, None
+        # Para ANATEL, não valida ano aqui pois usa 'consolidado' nas URLs
+        if self.fonte != 'anatel':
+            if ano not in self.urls:
+                st.error(f"❌ Dados de {ano} ainda não disponíveis para {self.fonte}")
+                return None, None
 
-        if tipo not in self.urls[ano]:
-            st.error(f"❌ Tipo '{tipo}' não disponível para {self.fonte}/{ano}")
-            return None, None
+            if tipo not in self.urls[ano]:
+                st.error(f"❌ Tipo '{tipo}' não disponível para {self.fonte}/{ano}")
+                return None, None
 
         # Chama o método específico da fonte
         metodo_nome = f"_carregar_{self.fonte}"
