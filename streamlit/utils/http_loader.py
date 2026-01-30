@@ -81,7 +81,7 @@ class HTTPDataLoader:
 
     def _download_file(self, url: str, destino: Path) -> bool:
         """
-        Baixa arquivo via HTTP com barra de progresso
+        Baixa arquivo via HTTP silenciosamente
 
         Args:
             url: URL do arquivo
@@ -94,19 +94,11 @@ class HTTPDataLoader:
             response = requests.get(url, stream=True, timeout=30)
             response.raise_for_status()
 
-            total_size = int(response.headers.get('content-length', 0))
-            progress_bar = st.progress(0)
-            downloaded = 0
-
             with open(destino, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
-                        downloaded += len(chunk)
-                        if total_size > 0:
-                            progress_bar.progress(downloaded / total_size)
 
-            progress_bar.empty()
             return True
 
         except requests.exceptions.RequestException as e:
@@ -262,33 +254,30 @@ class HTTPDataLoader:
                 st.error("❌ Nenhum arquivo com sufixo -09 (setembro) encontrado")
                 return False
 
-            st.info(f"📦 Processando {len(mapeamento)} arquivo(s) de setembro: {', '.join(sorted(mapeamento.keys()))}")
             sucesso_total = True
 
             for ano, csv_path in sorted(mapeamento.items()):
                 try:
-                    with st.spinner(f"⏳ Processando ano {ano}..."):
-                        # Lê o CSV
-                        try:
-                            df = pd.read_csv(csv_path, sep=';', encoding='utf-8-sig',
-                                           low_memory=False, na_values=['', ' ', '  '],
-                                           keep_default_na=True, decimal=',')
-                        except Exception:
-                            df = pd.read_csv(csv_path, sep=';', encoding='latin-1',
-                                           low_memory=False, na_values=['', ' ', '  '],
-                                           keep_default_na=True, decimal=',')
+                    # Lê o CSV
+                    try:
+                        df = pd.read_csv(csv_path, sep=';', encoding='utf-8-sig',
+                                       low_memory=False, na_values=['', ' ', '  '],
+                                       keep_default_na=True, decimal=',')
+                    except Exception:
+                        df = pd.read_csv(csv_path, sep=';', encoding='latin-1',
+                                       low_memory=False, na_values=['', ' ', '  '],
+                                       keep_default_na=True, decimal=',')
 
-                        # Limpa e otimiza
-                        df = self._limpar_colunas(df)
-                        df = self._preparar_dataframe(df, aplicar_categorizacao=True)
+                    # Limpa e otimiza
+                    df = self._limpar_colunas(df)
+                    df = self._preparar_dataframe(df, aplicar_categorizacao=True)
 
-                        # Cria pasta do ano e salva parquet
-                        ano_dir = self.cache_dir / self.fonte / ano
-                        ano_dir.mkdir(parents=True, exist_ok=True)
-                        destino_parquet = ano_dir / f"{tipo}.parquet"
-                        df.to_parquet(destino_parquet, compression='snappy', engine='pyarrow')
+                    # Cria pasta do ano e salva parquet
+                    ano_dir = self.cache_dir / self.fonte / ano
+                    ano_dir.mkdir(parents=True, exist_ok=True)
+                    destino_parquet = ano_dir / f"{tipo}.parquet"
+                    df.to_parquet(destino_parquet, compression='snappy', engine='pyarrow')
 
-                        st.success(f"✅ Ano {ano}: {len(df):,} registros → {destino_parquet.name}")
 
                 except Exception as e:
                     st.error(f"❌ Erro ao processar ano {ano}: {str(e)}")
@@ -320,9 +309,7 @@ class HTTPDataLoader:
         sucesso_processamento = False
 
         try:
-            st.info(f"📥 Baixando arquivo ZIP...")
             if self._download_file(url, temp_zip):
-                st.info(f"📂 Extraindo CSVs...")
                 with zipfile.ZipFile(temp_zip, 'r') as z:
                     nomes_arquivos = z.namelist()
                     csv_files = [f for f in nomes_arquivos if f.endswith('.csv')]
@@ -331,7 +318,6 @@ class HTTPDataLoader:
                         st.error(f"❌ Nenhum CSV encontrado dentro do arquivo ZIP")
                         return False
 
-                    st.info(f"📄 Encontrados {len(csv_files)} arquivo(s) CSV")
                     z.extractall(temp_dir)
                     csv_paths = [temp_dir / f for f in csv_files]
 
