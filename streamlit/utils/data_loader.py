@@ -86,3 +86,16 @@ def get_analisador_individuos(ano: int = 2025):
     return AnalisadorIndividuosCETIC(ano=ano, df=df, meta=meta)
 
 
+@st.cache_data
+def carregar_dados_anatel(ano: str = 'consolidado', tipo: str = 'conectividade-escola', force_download: bool = False):
+    """
+    Carrega dados da ANATEL via HTTP (com cache local)
+    """
+    loader = HTTPDataLoader(fonte='anatel')
+    resultado = loader.carregar_dados(ano, tipo, force_download)
+
+    if resultado:
+        return resultado
+    return None, None
+
+

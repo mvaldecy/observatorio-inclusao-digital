@@ -28,7 +28,9 @@ DATA_SOURCES = {
          'description': 'Dados de telecomunicações e telefonia',
          'website': 'https://www.gov.br/anatel',
          'urls': {
-             2024: {...}
+             'consolidado': {
+                 'conectividade-escola': "https://www.anatel.gov.br/dadosabertos/paineis_de_dados/infraestrutura/conectividade_escolas.zip"
+             }
          }
      },
     # 'ibge': {
