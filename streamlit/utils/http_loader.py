@@ -42,6 +42,10 @@ class HTTPDataLoader:
         # Carrega URLs da fonte
         self.urls = get_fonte_urls(fonte)
 
+        # Cria pasta específica da fonte (importante para deploy)
+        fonte_dir = self.cache_dir / self.fonte
+        fonte_dir.mkdir(parents=True, exist_ok=True)
+
     # =============================================================================
     # MÉTODOS AUXILIARES GERAIS
     # =============================================================================
