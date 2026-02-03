@@ -10,6 +10,7 @@ if root_path not in sys.path:
 
 from cetic.domicilios.analisador_domicilios_cetic import AnalisadorDomiciliosCETIC
 from cetic.individuos.analisador_individuos_cetic import AnalisadorIndividuosCETIC
+from anatel.analisador_anatel import AnalisadorAnatel
 
 @st.cache_data
 def carregar_dados_domicilios_cetic(ano: int = 2025, force_download: bool = False):
@@ -122,6 +123,29 @@ def carregar_conectividade_escola_anatel(ano: int, force_download: bool = False)
     """
     df, _ = carregar_dados_anatel(ano=ano, tipo='conectividade-escola', force_download=force_download)
     return df
+
+
+@st.cache_resource
+def get_analisador_anatel(ano: int = 2025, tipo: str = 'conectividade-escola'):
+    """
+    Retorna uma instância única do AnalisadorAnatel para um ano específico.
+    O uso de st.cache_resource garante que seja carregado apenas uma vez por ano.
+
+    Args:
+        ano: Ano da pesquisa (default: 2025)
+        tipo: Tipo de dado ('conectividade-escola', etc)
+
+    Returns:
+        AnalisadorAnatel configurado com os dados do ano
+    """
+    # Carrega dados via HTTP
+    df = carregar_conectividade_escola_anatel(ano)
+
+    if df is None:
+        raise ValueError(f"Não foi possível carregar dados da ANATEL de {ano}")
+
+    # Cria analisador passando df
+    return AnalisadorAnatel(df=df, ano=ano)
 
 
 def get_anos_disponiveis_anatel(tipo: str = 'conectividade-escola'):
