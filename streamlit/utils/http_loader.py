@@ -206,6 +206,129 @@ class HTTPDataLoader:
     # MÉTODOS ESPECÍFICOS DA ANATEL
     # =============================================================================
 
+    def _download_and_convert_xlsx_to_parquet(self, url: str, tipo: str = 'cobertura-movel') -> bool:
+        """
+        Baixa um arquivo Excel (.xlsx) e converte para Parquet
+        Guarda o arquivo na pasta cache/anatel/cobertura-movel/
+
+        Args:
+            url: URL do arquivo Excel
+            tipo: Tipo dos dados (default: 'cobertura-movel')
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        # Cria diretório de destino para cobertura móvel
+        destino_dir = self.cache_dir / self.fonte / tipo
+        destino_dir.mkdir(parents=True, exist_ok=True)
+
+        # Cria diretório temporário para download
+        temp_dir = self.cache_dir / self.fonte / 'temp'
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_xlsx = temp_dir / f'{tipo}.xlsx'
+
+        try:
+            st.info(f"📥 Baixando {tipo} (formato Excel)...")
+            if not self._download_file(url, temp_xlsx):
+                return False
+
+            st.info(f"📊 Convertendo Excel para Parquet...")
+
+            # Lê o arquivo Excel
+            df = pd.read_excel(temp_xlsx, engine='openpyxl')
+
+            if df is None or df.empty:
+                st.error(f"❌ Arquivo Excel está vazio")
+                return False
+
+            st.info(f"📋 Processando dados ({len(df)} linhas, {len(df.columns)} colunas)...")
+
+            # Limpa e otimiza o DataFrame
+            df = self._limpar_colunas(df)
+            df = self._preparar_dataframe(df, aplicar_categorizacao=True)
+
+            # Salva como parquet
+            destino_parquet = destino_dir / f'{tipo}.parquet'
+            df.to_parquet(destino_parquet, compression='snappy', engine='pyarrow')
+
+            st.success(f"✅ Arquivo convertido e salvo em {destino_parquet}")
+            st.info(f"ℹ️ Dimensões: {len(df)} linhas × {len(df.columns)} colunas")
+
+            return True
+
+        except Exception as e:
+            st.error(f"❌ Erro ao baixar/converter cobertura móvel: {str(e)}")
+            import traceback
+            st.error(f"Detalhes: {traceback.format_exc()}")
+            return False
+        finally:
+            # Limpa o diretório temporário
+            if temp_dir.exists():
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                except:
+                    pass
+
+    def _download_and_extract_cobertura_movel(self, url: str, tipo: str = 'cobertura-movel') -> bool:
+        """
+        Baixa o ZIP de cobertura móvel e extrai todos os arquivos sem processamento
+        Guarda os arquivos na pasta cache/anatel/cobertura-movel/
+
+        Args:
+            url: URL do arquivo ZIP
+            tipo: Tipo dos dados (default: 'cobertura-movel')
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        # Cria diretório de destino para cobertura móvel
+        destino_dir = self.cache_dir / self.fonte / tipo
+        destino_dir.mkdir(parents=True, exist_ok=True)
+
+        # Cria diretório temporário para download
+        temp_dir = self.cache_dir / self.fonte / 'temp'
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_zip = temp_dir / f'{tipo}.zip'
+
+        try:
+            st.info(f"📥 Baixando {tipo}...")
+            if not self._download_file(url, temp_zip):
+                return False
+
+            st.info(f"📦 Extraindo arquivos do ZIP...")
+            with zipfile.ZipFile(temp_zip, 'r') as z:
+                nomes_arquivos = z.namelist()
+
+                if not nomes_arquivos:
+                    st.error(f"❌ Nenhum arquivo encontrado dentro do ZIP")
+                    return False
+
+                # Extrai todos os arquivos para a pasta de destino
+                z.extractall(destino_dir)
+
+                st.success(f"✅ {len(nomes_arquivos)} arquivo(s) extraído(s) para {destino_dir}")
+
+                # Lista os arquivos extraídos
+                for nome in nomes_arquivos[:10]:  # Mostra até 10 primeiros
+                    st.text(f"  - {nome}")
+                if len(nomes_arquivos) > 10:
+                    st.text(f"  ... e mais {len(nomes_arquivos) - 10} arquivo(s)")
+
+            return True
+
+        except Exception as e:
+            st.error(f"❌ Erro ao baixar/extrair cobertura móvel: {str(e)}")
+            return False
+        finally:
+            # Limpa o diretório temporário
+            if temp_dir.exists():
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                except:
+                    pass
+
     def _filtrar_csvs_setembro(self, csv_paths: list) -> dict:
         """
         Filtra apenas arquivos CSV que terminam com -09 (setembro) e mapeia por ano
@@ -342,14 +465,62 @@ class HTTPDataLoader:
         Se não existir em cache, baixa o ZIP (que contém todos os anos) e processa
 
         Args:
-            ano: Ano dos dados (2022, 2023, 2024, 2025)
-            tipo: Tipo dos dados (ex: 'conectividade-escola')
+            ano: Ano dos dados (2022, 2023, 2024, 2025) ou 'consolidado'
+            tipo: Tipo dos dados (ex: 'conectividade-escola', 'cobertura-movel')
             force_download: Forçar download mesmo se existir cache
 
         Returns:
             Tupla (DataFrame, None) ou None se erro
         """
         fonte_dir = self.cache_dir / self.fonte
+
+        # Cobertura móvel tem estrutura diferente (não é baseada em anos)
+        if tipo == 'cobertura-movel':
+            tipo_dir = fonte_dir / tipo
+            parquet_path = tipo_dir / f"{tipo}.parquet"
+
+            # Se existe cache e não forçou download, carrega direto
+            if parquet_path.exists() and not force_download:
+                try:
+                    df = pd.read_parquet(str(parquet_path))
+                    return df, None
+                except Exception as e:
+                    st.error(f"❌ Erro ao carregar parquet de cobertura móvel: {str(e)}")
+                    return None, None
+
+            # Se não existe cache ou forçou download, baixa e converte
+            url = None
+            if 'consolidado' in self.urls and tipo in self.urls['consolidado']:
+                url = self.urls['consolidado'][tipo]
+
+            if not url:
+                st.error(f"❌ URL não encontrada para {self.fonte}/{tipo}")
+                return None, None
+
+            # Detecta o tipo de arquivo e baixa
+            if url.lower().endswith('.xlsx') or url.lower().endswith('.xls'):
+                if not self._download_and_convert_xlsx_to_parquet(url, tipo):
+                    return None, None
+            elif url.lower().endswith('.zip'):
+                if not self._download_and_extract_cobertura_movel(url, tipo):
+                    return None, None
+            else:
+                st.error(f"❌ Formato de arquivo não suportado: {url}")
+                return None, None
+
+            # Após processar, carrega o parquet
+            if parquet_path.exists():
+                try:
+                    df = pd.read_parquet(str(parquet_path))
+                    return df, None
+                except Exception as e:
+                    st.error(f"❌ Erro ao carregar parquet após download: {str(e)}")
+                    return None, None
+            else:
+                st.error(f"❌ Falha ao criar arquivo parquet para cobertura móvel")
+                return None, None
+
+        # Para conectividade-escola e outros dados baseados em ano
         ano_dir = fonte_dir / str(ano)
         parquet_path = ano_dir / f"{tipo}.parquet"
 
@@ -458,6 +629,50 @@ class HTTPDataLoader:
 
         st.error(f"❌ Carregador não implementado para a fonte: {self.fonte}")
         return None, None
+
+    def baixar_cobertura_movel(self, force_download: bool = False) -> bool:
+        """
+        Baixa e processa os arquivos de cobertura móvel da ANATEL
+        Se for ZIP: extrai os arquivos sem processamento
+        Se for XLSX: converte para Parquet
+        Guarda os arquivos na pasta cache/anatel/cobertura-movel/
+
+        Args:
+            force_download: Forçar novo download mesmo se já existirem arquivos
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        if self.fonte != 'anatel':
+            st.error("❌ Este método é exclusivo para a fonte ANATEL")
+            return False
+
+        tipo = 'cobertura-movel'
+        destino_dir = self.cache_dir / self.fonte / tipo
+
+        # Verifica se já existe cache
+        if destino_dir.exists() and any(destino_dir.iterdir()) and not force_download:
+            st.info(f"ℹ️ Arquivos já existem em {destino_dir}")
+            st.info("Use force_download=True para baixar novamente")
+            return True
+
+        # Busca a URL
+        url = None
+        if 'consolidado' in self.urls and tipo in self.urls['consolidado']:
+            url = self.urls['consolidado'][tipo]
+
+        if not url:
+            st.error(f"❌ URL não encontrada para cobertura móvel")
+            return False
+
+        # Detecta o tipo de arquivo pela URL e usa o método apropriado
+        if url.lower().endswith('.xlsx') or url.lower().endswith('.xls'):
+            return self._download_and_convert_xlsx_to_parquet(url, tipo)
+        elif url.lower().endswith('.zip'):
+            return self._download_and_extract_cobertura_movel(url, tipo)
+        else:
+            st.error(f"❌ Formato de arquivo não suportado: {url}")
+            return False
 
     # =============================================================================
     # MÉTODOS DE GERENCIAMENTO DE CACHE
