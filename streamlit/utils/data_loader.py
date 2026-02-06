@@ -166,25 +166,11 @@ def get_anos_disponiveis_anatel(tipo: str = 'conectividade-escola'):
     return []
 
 
-def baixar_cobertura_movel_anatel(force_download: bool = False) -> bool:
-    """
-    Baixa e extrai os arquivos de cobertura móvel da ANATEL
-    Os arquivos são salvos em: data/cache/anatel/cobertura-movel/
-
-    Args:
-        force_download: Forçar novo download mesmo se já existirem arquivos
-
-    Returns:
-        True se sucesso, False caso contrário
-    """
-    loader = HTTPDataLoader(fonte='anatel')
-    return loader.baixar_cobertura_movel(force_download=force_download)
-
 
 @st.cache_data
 def carregar_cobertura_movel_anatel(force_download: bool = False):
     """
-    Carrega dados de cobertura móvel da ANATEL
+    Carrega dados de cobertura móvel da ANATEL (geral)
     Os dados são carregados do arquivo parquet em cache
 
     Args:
@@ -200,4 +186,47 @@ def carregar_cobertura_movel_anatel(force_download: bool = False):
         df, _ = resultado
         return df
     return None
+
+
+@st.cache_data
+def carregar_cobertura_movel_5g_uf_anatel(force_download: bool = False):
+    """
+    Carrega dados de cobertura móvel 5G por UF da ANATEL
+    Os dados são carregados do arquivo parquet em cache
+
+    Args:
+        force_download: Forçar novo download mesmo se existir cache
+
+    Returns:
+        DataFrame com os dados de cobertura 5G por UF ou None se falhar
+    """
+    loader = HTTPDataLoader(fonte='anatel')
+    resultado = loader.carregar_dados(ano='consolidado', tipo='cobertura-movel-5g-uf', force_download=force_download)
+
+    if resultado:
+        df, _ = resultado
+        return df
+    return None
+
+
+@st.cache_data
+def carregar_cobertura_movel_4g_uf_anatel(force_download: bool = False):
+    """
+    Carrega dados de cobertura móvel 4G por UF da ANATEL
+    Os dados são carregados do arquivo parquet em cache
+
+    Args:
+        force_download: Forçar novo download mesmo se existir cache
+
+    Returns:
+        DataFrame com os dados de cobertura 4G por UF ou None se falhar
+    """
+    loader = HTTPDataLoader(fonte='anatel')
+    resultado = loader.carregar_dados(ano='consolidado', tipo='cobertura-movel-4g-uf', force_download=force_download)
+
+    if resultado:
+        df, _ = resultado
+        return df
+    return None
+
 

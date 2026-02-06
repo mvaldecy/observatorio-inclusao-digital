@@ -13,7 +13,8 @@ for p in [root_path, streamlit_path]:
     if p not in sys.path:
         sys.path.append(p)
 
-from utils.data_loader import carregar_cobertura_movel_anatel
+from utils.data_loader import carregar_cobertura_movel_anatel, carregar_cobertura_movel_4g_uf_anatel
+
 from components.header import render_header
 
 # Configuração da página
@@ -26,7 +27,7 @@ st.set_page_config(
 # Renderiza header
 render_header("Cobertura Móvel - ANATEL", "📡")
 st.markdown("""
-Esta página exibe dados de cobertura móvel da ANATEL. Os dados são baixados em formato Excel 
+Esta página exibe dados de cobertura móvel da ANATEL. Os dados são baixados em formato Excel
 e convertidos automaticamente para Parquet para melhor performance.
 """)
 
@@ -44,6 +45,7 @@ with col2:
 if st.button("🔄 Carregar Dados de Cobertura Móvel", type="primary"):
     with st.spinner("Carregando dados..."):
         df = carregar_cobertura_movel_anatel(force_download=force_download)
+        carregar_cobertura_movel_4g_uf_anatel(force_download=force_download)
 
         if df is not None:
             st.session_state['cobertura_movel_df'] = df
@@ -234,14 +236,14 @@ else:
     # Instruções iniciais
     st.info("""
     👆 Clique no botão acima para carregar os dados de cobertura móvel.
-    
+
     **O que acontece:**
     1. Se não houver cache, o sistema baixa o arquivo Excel da ANATEL
     2. O arquivo é convertido automaticamente para formato Parquet
     3. Os dados são otimizados (tipos, categorias, compressão)
     4. O resultado é salvo em cache local
     5. Próximas cargas são instantâneas (usa o cache)
-    
+
     **Opções:**
     - ✅ Normal: Usa cache se disponível
     - ✅ Forçar download: Baixa novamente mesmo se houver cache

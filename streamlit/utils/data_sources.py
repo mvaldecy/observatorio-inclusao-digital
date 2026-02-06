@@ -30,7 +30,9 @@ DATA_SOURCES = {
          'urls': {
              'consolidado': {
                  'conectividade-escola': "https://www.anatel.gov.br/dadosabertos/paineis_de_dados/infraestrutura/conectividade_escolas.zip",
-                 'cobertura-movel': "https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/latest/fc42dbaf-dc6d-401e-9dd7-0ff8f3b11910.xlsx"
+                 'cobertura-movel': "https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/latest/fc42dbaf-dc6d-401e-9dd7-0ff8f3b11910.xlsx",
+                 'cobertura-movel-5g-uf': "https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/cobertura-movel-5g/d1bb10b3-4311-4120-93e5-071274f425c3.xlsx",
+                 'cobertura-movel-4g-uf': "https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/cobertura-movel-4g/e524051c-2fe4-4756-a622-2997911c7c79.xlsx"
              }
          }
      },
