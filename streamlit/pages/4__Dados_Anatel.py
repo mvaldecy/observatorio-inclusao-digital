@@ -71,6 +71,22 @@ st.set_page_config(page_title="Dados Anatel", layout="wide", page_icon="�")
 # Título da página
 st.markdown("# 📡 Anatel - Conectividade nas Escolas")
 
+# Descrição sobre a fonte de dados
+st.markdown("""
+### 📋 Sobre estes dados
+
+Este dashboard apresenta dados da **ANATEL (Agência Nacional de Telecomunicações)** sobre 
+**conectividade e infraestrutura de telecomunicações em escolas brasileiras**.
+
+**O que você está visualizando:**
+- 📊 **Números de escolas** - Quantidade de registros de escolas no banco de dados
+- 🌐 **Indicadores de conectividade** - Informações sobre acesso à internet, tipo de conexão, velocidade, etc.
+- 📍 **Distribuição geográfica** - Dados por região, estado e município
+- 🏫 **Características das escolas** - Localização (urbana/rural), dependência administrativa, etc.
+
+> 💡 **Dica:** Use os filtros na barra lateral e no centro da página para explorar dados específicos.
+""")
+
 # CSS customizado para dark theme
 st.markdown("""
 <style>
@@ -186,10 +202,12 @@ selected_col = None
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("## 📊 Coluna para Análise")
+st.sidebar.caption("Escolha uma coluna para ver estatísticas detalhadas")
 selected_col = st.sidebar.selectbox(
     "Selecione a coluna para métricas e gráficos",
     ["Nenhuma"] + all_cols,
-    index=0
+    index=0,
+    help="Esta coluna será usada para calcular médias, porcentagens e gerar gráficos detalhados"
 )
 
 if selected_col == "Nenhuma":
@@ -265,23 +283,20 @@ br_mask = base_mask
 
 # Máscara do Nordeste
 if col_uf:
-    ne_mask = base_mask.copy()
-    ne_mask &= _uf_equals(df[col_uf], NE_UF)
+    ne_mask = base_mask & _uf_equals(df[col_uf], NE_UF)
 elif col_regiao:
-    ne_mask = base_mask.copy()
     normalized_region = df[col_regiao].astype(str).str.strip().str.upper()
-    ne_mask &= normalized_region.isin({"NORDESTE", "NE"})
+    ne_mask = base_mask & normalized_region.isin({"NORDESTE", "NE"})
 else:
-    # Se não há coluna UF/Região detectada, mostra dados do Brasil inteiro
-    ne_mask = base_mask.copy()
+    # Se não há coluna UF/Região detectada, não há dados específicos do Nordeste
+    ne_mask = pd.Series([False] * len(df), index=df.index)
 
 # Máscara do Piauí
 if col_uf:
-    pi_mask = base_mask.copy()
-    pi_mask &= _uf_equals(df[col_uf], {"PI", "PIAUI", "PIAUÍ"})
+    pi_mask = base_mask & _uf_equals(df[col_uf], {"PI", "PIAUI", "PIAUÍ"})
 else:
-    # Se não há coluna UF detectada, mostra dados do Brasil inteiro
-    pi_mask = base_mask.copy()
+    # Se não há coluna UF detectada, não há dados específicos do Piauí
+    pi_mask = pd.Series([False] * len(df), index=df.index)
 
 # Seção de Resumo dos Filtros Aplicados
 if any([selected_categorias, selected_indicadores, selected_ufs, selected_regioes, selected_localizacoes]):
@@ -315,8 +330,9 @@ if any([selected_categorias, selected_indicadores, selected_ufs, selected_regioe
     with metric_cols[0]:
         st.metric(
             label="📊 Total Selecionado",
-            value=f"{filtrado_total:,} escolas",
-            delta=f"{pct_filtrado:.1f}% da base total"
+            value=f"{filtrado_total:,}",
+            delta=f"{pct_filtrado:.1f}% da base",
+            help=f"Quantidade de escolas que atendem aos filtros aplicados. Base total: {total_geral:,} escolas."
         )
     
     with metric_cols[1]:
@@ -911,32 +927,63 @@ def _calc_metric_from_mask(data_mask: pd.Series) -> tuple[str, str]:
 st.markdown("---")
 st.markdown("## 📊 Visão Geral dos Dados")
 
+# Explicação sobre o que os dados representam
+st.info(
+    """📋 **O que esses números representam:**  
+    Quantidade de **registros de escolas** que atendem aos filtros selecionados acima.  
+    Cada número mostra quantas escolas estão incluídas na análise para cada região.
+    """
+)
+
+# Mostrar filtros ativos de forma destacada
+if selected_categorias or selected_indicadores or selected_localizacoes:
+    filtros_desc = []
+    if selected_categorias:
+        filtros_desc.append(f"**Categoria:** {', '.join(selected_categorias[:3])}{'...' if len(selected_categorias) > 3 else ''}")
+    if selected_indicadores:
+        filtros_desc.append(f"**Indicador:** {', '.join(selected_indicadores[:2])}{'...' if len(selected_indicadores) > 2 else ''}")
+    if selected_localizacoes:
+        filtros_desc.append(f"**Localização:** {', '.join(selected_localizacoes)}")
+    
+    st.warning(f"🎯 **Filtros ativos:** {' | '.join(filtros_desc)}")
+else:
+    st.success("✅ Visualizando **todos os registros** disponíveis (nenhum filtro ativo)")
+
 # Métricas comparativas Brasil, Nordeste e Piauí
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.markdown("### 🇧🇷 Brasil")
     br_total = br_mask.sum()
-    st.metric("Total de Escolas", f"{br_total:,} escolas")
+    st.metric("Total de Escolas", f"{br_total:,}")
     if br_total > 0:
         br_pct = (br_total / len(df) * 100)
         st.caption(f"📊 Representa {br_pct:.1f}% da base total")
+        st.caption(f"📁 Base total: {len(df):,} registros")
 
 with col2:
     st.markdown("### 🌴 Nordeste")
     ne_total = ne_mask.sum()
-    st.metric("Total de Escolas", f"{ne_total:,} escolas")
+    st.metric("Total de Escolas", f"{ne_total:,}")
     if ne_total > 0:
         ne_pct = (ne_total / br_total * 100) if br_total > 0 else 0
         st.caption(f"📊 Representa {ne_pct:.1f}% das escolas do Brasil")
+        st.caption(f"🌎 Estados: AL, BA, CE, MA, PB, PE, PI, RN, SE")
+    else:
+        st.caption("⚠️ Nenhum registro do Nordeste encontrado")
 
 with col3:
     st.markdown("### 🏴 Piauí")
     pi_total = pi_mask.sum()
-    st.metric("Total de Escolas", f"{pi_total:,} escolas")
+    st.metric("Total de Escolas", f"{pi_total:,}")
     if pi_total > 0:
         pi_pct = (pi_total / ne_total * 100) if ne_total > 0 else 0
         st.caption(f"📊 Representa {pi_pct:.1f}% das escolas do Nordeste")
+        if ne_total > 0:
+            pi_br_pct = (pi_total / br_total * 100) if br_total > 0 else 0
+            st.caption(f"🇧🇷 {pi_br_pct:.1f}% do Brasil")
+    else:
+        st.caption("⚠️ Nenhum registro do Piauí encontrado")
 
 # Métricas de filtros
 st.markdown("---")
