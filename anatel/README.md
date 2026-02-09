@@ -1,15 +1,25 @@
 # Analisador ANATEL
 
-Módulo de análise de dados da ANATEL (Agência Nacional de Telecomunicações) para conectividade escolar.
+Módulo de análise de dados da ANATEL (Agência Nacional de Telecomunicações) para conectividade escolar e cobertura móvel.
+
+## 📚 Documentação
+
+- **[GUIA_ESTATISTICAS.md](GUIA_ESTATISTICAS.md)** - Guia completo sobre análise estatística de cobertura móvel
+- **[exemplo_analise_estatistica.py](exemplo_analise_estatistica.py)** - Exemplos práticos de análise
+- **[exemplo_uso.py](exemplo_uso.py)** - Exemplos básicos de uso
 
 ## 📋 Estrutura
 
 ```
 anatel/
-├── __init__.py              # Inicialização do módulo
-├── analisador_anatel.py     # Classe principal AnalisadorAnatel
-├── exemplo_uso.py           # Exemplos de uso
-└── README.md               # Esta documentação
+├── __init__.py                      # Inicialização do módulo
+├── analisador_anatel.py             # Análise de dados escolares
+├── analisador_cobertura_movel.py    # Análise de cobertura móvel
+├── municipios_ibge.py               # Mapeamento de códigos IBGE
+├── exemplo_uso.py                   # Exemplos básicos
+├── exemplo_analise_estatistica.py   # Exemplos de análise estatística
+├── GUIA_ESTATISTICAS.md            # Guia didático de estatísticas
+└── README.md                        # Esta documentação
 ```
 
 ## 🚀 Uso no Streamlit
@@ -184,7 +194,93 @@ anos = get_anos_disponiveis_anatel('conectividade-escola')
 
 O analisador usa `@st.cache_resource` para manter uma única instância por ano, economizando memória e melhorando performance.
 
-## 🐛 Tratamento de Erros
+## � Análise de Cobertura Móvel
+
+### Uso Básico
+
+```python
+from utils.data_loader import get_analisador_cobertura_movel
+
+# Carrega analisador de cobertura móvel
+analisador = get_analisador_cobertura_movel()
+
+# Ranking de cobertura
+resultado = analisador.ranking_cobertura(top_n=10, bottom_n=10)
+
+# Acessa os resultados
+print("Top 10 municípios:")
+print(resultado['top'])
+
+print("\nEstatísticas:")
+stats = resultado['estatisticas']
+print(f"Média: {stats['cobertura_media']:.2f}%")
+print(f"Mediana: {stats['cobertura_mediana']:.2f}%")
+print(f"Desvio Padrão: {stats['desvio_padrao']:.2f}%")
+
+# Distribuição por faixas
+print("\nDistribuição:")
+for faixa, qtd in stats['distribuicao'].items():
+    perc = stats['distribuicao_percentual'][faixa]
+    print(f"{faixa}: {qtd} municípios ({perc}%)")
+```
+
+### Análise por Estado
+
+```python
+# Ranking apenas do Piauí
+resultado_pi = analisador.ranking_cobertura(por_uf='PI', top_n=5, bottom_n=5)
+
+# Resumo estatístico por UF
+resumo_ufs = analisador.obter_resumo_por_uf()
+print(resumo_ufs)
+```
+
+### Distribuição de Cobertura
+
+```python
+# Distribuição nacional
+dist = analisador.obter_distribuicao_cobertura()
+
+# Distribuição por estado
+dist_pi = analisador.obter_distribuicao_cobertura(por_uf='PI')
+
+print(dist)
+# Faixa de Cobertura | Quantidade de Municípios | Percentual (%)
+# Sem cobertura      | 150                      | 15.0%
+# Muito Baixa        | 200                      | 20.0%
+# ...
+```
+
+### Interpretação Automática
+
+```python
+# Gera interpretação em linguagem clara
+interpretacao = analisador.interpretar_estatisticas(stats)
+print(interpretacao)
+
+# Exemplo de saída:
+# ✅ Boa cobertura média (65.5%) - Nível satisfatório de conectividade
+# 
+# ⚠️ Desigualdade positiva - Poucos municípios com alta cobertura elevam a média
+# 
+# 🟡 Variação moderada (18.2%) - Alguma desigualdade na distribuição
+```
+
+### 📖 Entendendo as Estatísticas
+
+Para uma explicação completa e didática sobre as métricas estatísticas, consulte:
+- **[GUIA_ESTATISTICAS.md](GUIA_ESTATISTICAS.md)** - Guia completo com exemplos práticos
+- **[exemplo_analise_estatistica.py](exemplo_analise_estatistica.py)** - Código de exemplo
+
+**Resumo rápido:**
+- **Média**: Cobertura média de todos os municípios (pode ser influenciada por extremos)
+- **Mediana**: Valor do meio - metade tem mais, metade tem menos (mais resistente a extremos)
+- **Desvio Padrão**: Mede a desigualdade - quanto maior, mais heterogênea é a cobertura
+- **Distribuição**: Mostra quantos municípios estão em cada faixa de conectividade
+
+**Dica importante:** Sempre analise MÉDIA + MEDIANA + DESVIO juntos para ter uma visão completa!
+
+## �🐛 Tratamento de Erros
 
 ```python
 try:
