@@ -228,11 +228,8 @@ class HTTPDataLoader:
         temp_xlsx = temp_dir / f'{tipo}.xlsx'
 
         try:
-            st.info(f"📥 Baixando {tipo} (formato Excel)...")
             if not self._download_file(url, temp_xlsx):
                 return False
-
-            st.info(f"📊 Convertendo Excel para Parquet...")
 
             # Lê o arquivo Excel
             df = pd.read_excel(temp_xlsx, engine='openpyxl')
@@ -241,8 +238,6 @@ class HTTPDataLoader:
                 st.error(f"❌ Arquivo Excel está vazio")
                 return False
 
-            st.info(f"📋 Processando dados ({len(df)} linhas, {len(df.columns)} colunas)...")
-
             # Limpa e otimiza o DataFrame
             df = self._limpar_colunas(df)
             df = self._preparar_dataframe(df, aplicar_categorizacao=True)
@@ -250,9 +245,6 @@ class HTTPDataLoader:
             # Salva como parquet
             destino_parquet = destino_dir / f'{tipo}.parquet'
             df.to_parquet(destino_parquet, compression='snappy', engine='pyarrow')
-
-            st.success(f"✅ Arquivo convertido e salvo em {destino_parquet}")
-            st.info(f"ℹ️ Dimensões: {len(df)} linhas × {len(df.columns)} colunas")
 
             return True
 
@@ -587,23 +579,15 @@ class HTTPDataLoader:
         if ano:
             ano_dir = fonte_dir / str(ano)
             if ano_dir.exists():
-                arquivos_removidos = 0
                 for arquivo in ano_dir.iterdir():
                     if arquivo.is_file():
                         arquivo.unlink()
-                        arquivos_removidos += 1
-                if arquivos_removidos > 0:
-                    st.success(f"🗑️ {arquivos_removidos} arquivo(s) removido(s)")
         else:
             # Limpa todo o cache da fonte
             if fonte_dir.exists():
-                arquivos_removidos = 0
                 for arquivo in fonte_dir.rglob("*"):
                     if arquivo.is_file():
                         arquivo.unlink()
-                        arquivos_removidos += 1
-                if arquivos_removidos > 0:
-                    st.success(f"🗑️ Cache limpo: {arquivos_removidos} arquivo(s)")
 
     def info_cache(self) -> dict:
         """

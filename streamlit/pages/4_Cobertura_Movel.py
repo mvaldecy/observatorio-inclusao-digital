@@ -34,7 +34,6 @@ try:
             df = carregar_cobertura_movel_4g_uf_anatel()
 
         if df is not None:
-            st.success(f"✓ {len(df):,} registros carregados")
             st.dataframe(df.head(100))
         else:
             st.error("❌ Não foi possível carregar os dados")
