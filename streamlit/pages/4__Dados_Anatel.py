@@ -87,6 +87,8 @@ Este dashboard apresenta dados da **ANATEL (Agência Nacional de Telecomunicaç�
 > 💡 **Dica:** Use os filtros na barra lateral e no centro da página para explorar dados específicos.
 """)
 
+# apagar
+
 # CSS customizado para dark theme
 st.markdown("""
 <style>
