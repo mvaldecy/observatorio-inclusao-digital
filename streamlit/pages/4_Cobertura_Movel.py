@@ -21,7 +21,13 @@ for p in [root_path, streamlit_path]:
     if p not in sys.path:
         sys.path.append(p)
 
-from utils.data_loader import get_analisador_cobertura_movel
+# Importação robusta que funciona local e no deploy
+try:
+    from utils.data_loader import get_analisador_cobertura_movel
+except ImportError:
+    # Fallback para quando rodando do diretório raiz (deploy)
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from utils.data_loader import get_analisador_cobertura_movel
 
 # Configuração da página
 st.set_page_config(page_title="Cobertura Móvel - ANATEL", layout="wide", page_icon="📡")
