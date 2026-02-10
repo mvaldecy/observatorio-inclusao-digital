@@ -11,6 +11,7 @@ if root_path not in sys.path:
 from cetic.domicilios.analisador_domicilios_cetic import AnalisadorDomiciliosCETIC
 from cetic.individuos.analisador_individuos_cetic import AnalisadorIndividuosCETIC
 from anatel.analisador_anatel import AnalisadorAnatel
+from anatel.analisador_cobertura_movel import AnalisadorCoberturaMovel
 
 @st.cache_data
 def carregar_dados_domicilios_cetic(ano: int = 2025, force_download: bool = False):
@@ -186,6 +187,29 @@ def carregar_cobertura_movel_anatel(force_download: bool = False):
         df, _ = resultado
         return df
     return None
+
+
+@st.cache_resource
+def get_analisador_cobertura_movel(force_download: bool = False):
+    """
+    Retorna uma instância única do AnalisadorCoberturaMovel.
+    O uso de st.cache_resource garante que seja carregado apenas uma vez.
+
+    Args:
+        force_download: Forçar novo download mesmo se existir cache
+
+    Returns:
+        AnalisadorCoberturaMovel configurado com os dados
+    """
+    # Carrega dados via HTTP
+    df = carregar_cobertura_movel_anatel(force_download)
+
+    if df is None:
+        raise ValueError("Não foi possível carregar dados de cobertura móvel da ANATEL")
+
+    # Cria analisador passando df
+    return AnalisadorCoberturaMovel(df=df)
+
 
 
 @st.cache_data

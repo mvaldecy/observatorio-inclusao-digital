@@ -8,9 +8,12 @@ requests>=2.31.0
 plotly>=5.14.0
 altair>=5.0.0
 
-# Optional - for Excel export (if needed)
+# For Excel export
 openpyxl>=3.1.0
 
 # For better performance with large datasets
 pyarrow>=12.0.0
+
+# Additional dependencies for the project
+numpy>=1.24.0
 
