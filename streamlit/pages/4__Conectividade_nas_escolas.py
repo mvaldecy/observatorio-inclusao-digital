@@ -148,8 +148,6 @@ try:
         st.error(f"❌ Falha ao carregar dados da ANATEL para o ano {ano_selecionado}.")
         st.stop()
     
-    st.success(f"✅ Dados de {ano_selecionado} carregados com sucesso! Total de registros: {len(df):,}")
-    
 except Exception as exc:
     st.error(f"❌ **Erro ao carregar dados**: {exc}")
     st.stop()
