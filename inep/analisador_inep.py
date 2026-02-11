@@ -322,6 +322,80 @@ class AnalisadorINEP:
 
         return pd.DataFrame(resultados)
 
+    def analisar_por_agregador_quantitativo(self, indicador, campo_agregador: str,
+                                              funcao='sum', df_contexto=None):
+        """
+        Análise quantitativa por agregador usando groupby.
+        Para indicadores numéricos (QT_*), aplica uma função de agregação.
+
+        Args:
+            indicador: Campo ou lista de campos para análise
+            campo_agregador: Nome do campo para agregação
+            funcao: Função de agregação: 'sum', 'mean', 'median', 'count'
+            df_contexto: DataFrame filtrado (opcional)
+
+        Returns:
+            DataFrame com resultados agregados
+        """
+        df = df_contexto if df_contexto is not None else self.df
+
+        if df.empty:
+            return None
+
+        if campo_agregador not in df.columns:
+            print(f"Erro: Campo agregador '{campo_agregador}' não encontrado.")
+            return None
+
+        label_agregador = get_label(campo_agregador)
+        map_agregador = get_valores(campo_agregador) or {}
+
+        is_multiple = isinstance(indicador, list)
+        campos = indicador if is_multiple else [indicador]
+
+        # Verificar que os campos existem
+        campos = [c for c in campos if c in df.columns]
+        if not campos:
+            return None
+
+        resultados = []
+
+        for valor_agregador in sorted(df[campo_agregador].dropna().unique()):
+            df_grupo = df[df[campo_agregador] == valor_agregador]
+            valor_str = str(int(valor_agregador) if isinstance(valor_agregador, float)
+                           and valor_agregador.is_integer() else valor_agregador)
+            label_valor = map_agregador.get(valor_str, str(valor_agregador))
+
+            for campo in campos:
+                serie = df_grupo[campo].dropna()
+                if serie.empty:
+                    continue
+
+                if funcao == 'sum':
+                    valor_calc = serie.sum()
+                elif funcao == 'mean':
+                    valor_calc = serie.mean()
+                elif funcao == 'median':
+                    valor_calc = serie.median()
+                elif funcao == 'count':
+                    valor_calc = serie.count()
+                else:
+                    valor_calc = serie.sum()
+
+                resultado = {
+                    label_agregador: label_valor,
+                    'Agregador_Valor': valor_agregador,
+                    'Indicador': get_label(campo),
+                    'Indicador_Cod': campo,
+                    'Valor': valor_calc,
+                    'Contagem': len(df_grupo),
+                }
+                resultados.append(resultado)
+
+        if not resultados:
+            return None
+
+        return pd.DataFrame(resultados)
+
     def resumo_infraestrutura(self, **kwargs):
         """
         Gera resumo de infraestrutura de internet e tecnologia.

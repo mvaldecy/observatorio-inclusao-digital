@@ -94,6 +94,7 @@ AGREGADORES_INEP = {
     "Por Região": "CO_REGIAO",
     "Por Estado (UF)": "CO_UF",
     "Por Situação de Funcionamento": "TP_SITUACAO_FUNCIONAMENTO",
+    "Por Localização Diferenciada": "TP_LOCALIZACAO_DIFERENCIADA",
 }
 
 # UFs para filtros
