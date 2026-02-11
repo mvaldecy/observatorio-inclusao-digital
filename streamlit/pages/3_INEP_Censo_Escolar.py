@@ -17,10 +17,9 @@ for p in [root_path, streamlit_path]:
 
 from utils.data_loader import get_analisador_inep, get_anos_disponiveis_inep
 from utils.http_loader import HTTPDataLoader
-from components.categorias_inep import CATEGORIAS_INEP, AGREGADORES_INEP
-from components.filtro_inep import FiltroINEP
+from components.inep import CATEGORIAS_INEP, AGREGADORES_INEP, FiltroINEP, ComparativoGeograficoINEP
 from components.header import render_header
-from inep import get_label, get_valores, formatar_valor
+from inep import get_label, get_valores
 
 st.set_page_config(page_title="INEP - Censo Escolar", layout="wide", page_icon="🏫")
 
@@ -131,33 +130,33 @@ with col_cat:
 INDICADORES_CATEGORIA = {}
 for k, v in CATEGORIAS_INEP[selected_category].items():
     if isinstance(v, str):
+        # v é o nome da coluna, k é o label amigável
         INDICADORES_CATEGORIA[k] = v
     else:
-        INDICADORES_CATEGORIA[k] = f"COMPARATIVO: {k}"
+        # v é uma lista (comparativo)
+        INDICADORES_CATEGORIA[k] = v
 
 with col_ind:
     selected_indicador_key = st.selectbox(
         "📊 Indicador",
         options=list(INDICADORES_CATEGORIA.keys()),
-        format_func=lambda x: INDICADORES_CATEGORIA[x],
         help="Selecione o indicador específico"
     )
 
-# Determinar se é análise múltipla
+# Determinar se é análise múltipla e pegar o indicador real (nome da coluna)
 is_multiple = False
-actual_indicador = selected_indicador_key
+actual_indicador = INDICADORES_CATEGORIA[selected_indicador_key]
 
-# Verificar se o indicador selecionado é uma lista (comparativo)
-for cat in CATEGORIAS_INEP.values():
-    if selected_indicador_key in cat and isinstance(cat[selected_indicador_key], list):
-        is_multiple = True
-        actual_indicador = cat[selected_indicador_key]
-        break
+# Se for lista, é comparativo
+if isinstance(actual_indicador, list):
+    is_multiple = True
+    # actual_indicador já é a lista de colunas
 
-# Obter label amigável
+# Obter label amigável para exibição
 if is_multiple:
-    label_indicador = f"📊 Comparativo: {selected_indicador_key}"
+    label_indicador = f"📊 {selected_indicador_key}"
 else:
+    # actual_indicador é o nome da coluna, usar get_label para obter descrição
     label_indicador = get_label(actual_indicador)
 
 st.subheader(label_indicador)
@@ -330,6 +329,38 @@ if usar_agregador:
             file_name=f"inep_{ano_selecionado}_{selected_indicador_key}_por_{campo_agregador}.csv",
             mime="text/csv"
         )
+
+# ============================================================================
+# COMPARATIVO GEOGRÁFICO
+# ============================================================================
+
+st.markdown("---")
+st.markdown("### 🗺️ Comparativo Geográfico")
+
+usar_comparativo = st.checkbox(
+    "Comparar Brasil / Nordeste / Piauí",
+    value=False,
+    help="Análise comparativa entre diferentes níveis geográficos"
+)
+
+if usar_comparativo:
+    # Criar componente de comparativo geográfico
+    comparativo = ComparativoGeograficoINEP(analisador)
+
+    # Pegar filtros extras aplicados (exceto geográficos)
+    filtros_extras = {}
+    if hasattr(filtro_helper, 'filtros_aplicados'):
+        for col, valor in filtro_helper.filtros_aplicados.items():
+            # Não incluir filtros geográficos no comparativo
+            if col not in ['CO_REGIAO', 'CO_UF', 'CO_MUNICIPIO']:
+                filtros_extras[col] = valor
+
+    # Renderizar comparativo
+    comparativo.renderizar(
+        indicador=actual_indicador,
+        filtros_extras=filtros_extras if filtros_extras else None,
+        is_multiple=is_multiple
+    )
 
 # ============================================================================
 # RESUMO ESTATÍSTICO

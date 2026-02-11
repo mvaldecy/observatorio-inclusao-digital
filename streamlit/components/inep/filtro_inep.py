@@ -2,7 +2,7 @@
 Componente de Filtros para INEP
 """
 import streamlit as st
-from components.categorias_inep import UFS_BRASIL, REGIOES_BRASIL
+from .categorias_inep import UFS_BRASIL, REGIOES_BRASIL
 from inep import get_valores, formatar_valor
 
 
@@ -13,6 +13,10 @@ class FiltroINEP:
         self.analisador = analisador
         self.filtros_aplicados = {}
 
+        # Inicializar contador de reset no session_state
+        if 'filtro_inep_reset_counter' not in st.session_state:
+            st.session_state.filtro_inep_reset_counter = 0
+
     def render_filtros_geograficos(self):
         """Renderiza filtros geográficos"""
         st.sidebar.markdown("### 🗺️ Filtros Geográficos")
@@ -22,7 +26,8 @@ class FiltroINEP:
             "Região",
             options=[None] + list(REGIOES_BRASIL.keys()),
             format_func=lambda x: "Todas as regiões" if x is None else REGIOES_BRASIL[x],
-            help="Filtre por região geográfica"
+            help="Filtre por região geográfica",
+            key=f"regiao_{st.session_state.filtro_inep_reset_counter}"
         )
 
         if regiao:
@@ -33,7 +38,8 @@ class FiltroINEP:
             "Estado (UF)",
             options=[None] + list(UFS_BRASIL.keys()),
             format_func=lambda x: "Todos os estados" if x is None else f"{UFS_BRASIL[x]} ({x})",
-            help="Filtre por estado"
+            help="Filtre por estado",
+            key=f"uf_{st.session_state.filtro_inep_reset_counter}"
         )
 
         if uf:
@@ -49,7 +55,8 @@ class FiltroINEP:
             "Dependência Administrativa",
             options=list(dependencias.keys()),
             format_func=lambda x: dependencias[x],
-            help="Tipo de gestão da escola"
+            help="Tipo de gestão da escola",
+            key=f"dependencia_{st.session_state.filtro_inep_reset_counter}"
         )
 
         if dep:
@@ -61,28 +68,51 @@ class FiltroINEP:
             "Localização",
             options=[None] + list(localizacoes.keys()),
             format_func=lambda x: "Todas" if x is None else localizacoes[x],
-            help="Localização da escola"
+            help="Localização da escola",
+            key=f"localizacao_{st.session_state.filtro_inep_reset_counter}"
         )
 
         if loc:
             self.filtros_aplicados['TP_LOCALIZACAO'] = int(loc)
+
+        # Localização Diferenciada (Território)
+        loc_dif = get_valores('TP_LOCALIZACAO_DIFERENCIADA')
+        territorio = st.sidebar.selectbox(
+            "Território",
+            options=[None] + list(loc_dif.keys()),
+            format_func=lambda x: "Todos" if x is None else loc_dif[x],
+            help="Localização diferenciada (indígena, quilombola, etc)",
+            key=f"territorio_{st.session_state.filtro_inep_reset_counter}"
+        )
+
+        if territorio:
+            self.filtros_aplicados['TP_LOCALIZACAO_DIFERENCIADA'] = int(territorio)
 
     def render_filtros_infraestrutura(self):
         """Renderiza filtros de infraestrutura"""
         with st.sidebar.expander("🌐 Infraestrutura", expanded=False):
 
             # Internet
-            internet = st.checkbox("Apenas com Internet", key="filtro_internet")
+            internet = st.checkbox(
+                "Apenas com Internet",
+                key=f"filtro_internet_{st.session_state.filtro_inep_reset_counter}"
+            )
             if internet:
                 self.filtros_aplicados['IN_INTERNET'] = 1
 
             # Laboratório
-            lab = st.checkbox("Apenas com Lab. de Informática", key="filtro_lab")
+            lab = st.checkbox(
+                "Apenas com Lab. de Informática",
+                key=f"filtro_lab_{st.session_state.filtro_inep_reset_counter}"
+            )
             if lab:
                 self.filtros_aplicados['IN_LABORATORIO_INFORMATICA'] = 1
 
             # Banda Larga
-            banda = st.checkbox("Apenas com Banda Larga", key="filtro_banda")
+            banda = st.checkbox(
+                "Apenas com Banda Larga",
+                key=f"filtro_banda_{st.session_state.filtro_inep_reset_counter}"
+            )
             if banda:
                 self.filtros_aplicados['IN_BANDA_LARGA'] = 1
 
@@ -95,7 +125,7 @@ class FiltroINEP:
                 "Situação de Funcionamento",
                 options=[None] + list(situacoes.keys()),
                 format_func=lambda x: "Todas" if x is None else situacoes[x],
-                key="filtro_situacao"
+                key=f"filtro_situacao_{st.session_state.filtro_inep_reset_counter}"
             )
 
             if sit:
@@ -137,6 +167,24 @@ class FiltroINEP:
         st.sidebar.markdown("---")
         st.sidebar.markdown("## 🔍 Filtros")
 
+        # Botão para limpar filtros no topo
+        if st.sidebar.button("🗑️ Limpar Filtros", use_container_width=True, key="limpar_filtros_inep"):
+            # Limpar session state de todos os filtros
+            keys_to_delete = [
+                'filtro_internet', 'filtro_lab', 'filtro_banda', 'filtro_situacao'
+            ]
+            for key in keys_to_delete:
+                if key in st.session_state:
+                    del st.session_state[key]
+
+            # Limpar dicionário de filtros aplicados
+            self.filtros_aplicados.clear()
+
+            # Recarregar página
+            st.rerun()
+
+        st.sidebar.markdown("---")
+
         self.render_filtros_geograficos()
         self.render_filtros_caracterizacao()
         self.render_filtros_infraestrutura()
@@ -144,9 +192,6 @@ class FiltroINEP:
 
         st.sidebar.markdown("---")
 
-        # Botão para limpar filtros
-        if st.sidebar.button("🗑️ Limpar Filtros", use_container_width=True):
-            st.rerun()
 
         # Aplicar filtros
         filtros_ativos = self.aplicar_filtros()
