@@ -1215,7 +1215,7 @@ else:
                     showlegend=True
                 )
                 
-                st.plotly_chart(fig, use_container_width=True, key=f"chart_binary_{idx}_{col_name[:20]}")
+                st.plotly_chart(fig, use_container_width=True, key=f"chart_binary_{col_name[:20]}")
 
     # Análise Urbano x Rural
 st.markdown("---")
