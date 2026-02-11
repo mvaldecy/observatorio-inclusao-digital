@@ -361,8 +361,10 @@ class AnalisadorINEP:
 
         for valor_agregador in sorted(df[campo_agregador].dropna().unique()):
             df_grupo = df[df[campo_agregador] == valor_agregador]
-            valor_str = str(int(valor_agregador) if isinstance(valor_agregador, float)
-                           and valor_agregador.is_integer() else valor_agregador)
+            if isinstance(valor_agregador, float) and valor_agregador.is_integer():
+                valor_str = str(int(valor_agregador))
+            else:
+                valor_str = str(valor_agregador)
             label_valor = map_agregador.get(valor_str, str(valor_agregador))
 
             for campo in campos:

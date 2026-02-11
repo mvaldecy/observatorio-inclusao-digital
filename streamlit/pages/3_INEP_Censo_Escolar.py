@@ -300,7 +300,7 @@ with st.expander("ℹ️ Sobre a seleção atual", expanded=False):
         st.markdown(f"**Função:** {funcao_label}")
         if is_multiple:
             st.markdown("**Indicadores comparados:**")
-            for ind in (actual_indicador if is_multiple else [actual_indicador]):
+            for ind in actual_indicador:
                 st.markdown(f"- `{ind}`: {get_label(ind)}")
 
 # ============================================================================
