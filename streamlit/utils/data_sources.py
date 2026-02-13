@@ -42,7 +42,7 @@ DATA_SOURCES = {
         'website': 'https://www.ibge.gov.br',
         'urls': {
             'consolidado': {
-                'tabela-7336': 'https://sidra.ibge.gov.br/tabela/7336#resultado'
+                'tabela-7336': 'https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/dados-ibge-2021-2024/tabela7336.csv'
             }
         }
     }
