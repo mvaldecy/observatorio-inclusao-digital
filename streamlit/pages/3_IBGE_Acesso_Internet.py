@@ -334,17 +334,15 @@ with tab2:
     if instrucao_selecionada:
         df_comp_fixo = df_comp_fixo[df_comp_fixo['INSTRUCAO'].isin(instrucao_selecionada)]
     
-    # Função para calcular valor
-    def obter_valor_regiao(df, regiao):
-        if regiao == 'Brasil':
-            d = df[df['LOCALIZACAO'] == 'Brasil']
-        else:
-            d = df[df['REGIAO'] == regiao]
+    # Função para calcular valor usando LOCALIZACAO
+    def obter_valor_regiao(df, localizacao):
+        # Sempre buscar por LOCALIZACAO, que pode ser 'Brasil', 'Nordeste', 'Piauí', etc.
+        d = df[df['LOCALIZACAO'] == localizacao]
         if d.empty:
             return None
         return float(d['PERCENTUAL'].mean())
     
-    # Calcular valores
+    # Calcular valores usando LOCALIZACAO
     v_brasil = obter_valor_regiao(df_comp_fixo, 'Brasil')
     v_nordeste = obter_valor_regiao(df_comp_fixo, 'Nordeste')
     v_piaui = obter_valor_regiao(df_comp_fixo, 'Piauí')

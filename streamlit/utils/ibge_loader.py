@@ -167,9 +167,9 @@ class IBGEDataLoader:
             else:
                 response = requests.get(url, timeout=30)
                 response.raise_for_status()
-                # Lê em memória (formato do release do repositório usa header e 5 linhas iniciais)
+                # Lê em memória (formato do release do repositório usa header e 4 linhas iniciais, Brasil está na 5ª linha)
                 try:
-                    df_raw = pd.read_csv(StringIO(response.text), sep=';', encoding='utf-8', skiprows=5)
+                    df_raw = pd.read_csv(StringIO(response.text), sep=';', encoding='utf-8', skiprows=4)
                 except Exception:
                     df_raw = pd.read_csv(StringIO(response.text), sep=';', encoding='utf-8')
             

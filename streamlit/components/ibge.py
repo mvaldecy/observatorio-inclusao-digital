@@ -36,8 +36,9 @@ def renderizar_filtros(df: pd.DataFrame):
 def renderizar_comparativo_brasil(df: pd.DataFrame, instrucoes_sel: list[str]):
     """Mostra métricas fixas: Brasil, Nordeste, Piauí considerando níveis selecionados."""
     cols = st.columns(4)
-    def _valor(local):
-        d = df[(df['LOCALIZACAO'] == local)]
+    def _valor(localizacao):
+        """Busca valor por LOCALIZACAO (Brasil, Nordeste, Piauí, etc.)"""
+        d = df[(df['LOCALIZACAO'] == localizacao)]
         if instrucoes_sel and 'INSTRUCAO' in d.columns:
             d = d[d['INSTRUCAO'].isin(instrucoes_sel)]
         if d.empty:

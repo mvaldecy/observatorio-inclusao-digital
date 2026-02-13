@@ -527,6 +527,86 @@ class HTTPDataLoader:
             return None, None
 
     # =============================================================================
+    # MÉTODOS ESPECÍFICOS DO IBGE
+    # =============================================================================
+
+    def _carregar_ibge(self, ano: any, tipo: str, force_download: bool = False) -> Optional[Tuple[pd.DataFrame, any]]:
+        """
+        Carrega dados do IBGE (arquivos CSV)
+
+        Args:
+            ano: Ano dos dados ou 'consolidado'
+            tipo: Tipo dos dados (ex: 'tabela-7336')
+            force_download: Forçar download mesmo se existir cache
+
+        Returns:
+            Tupla (DataFrame, None) ou None se erro
+        """
+        fonte_dir = self.cache_dir / self.fonte
+
+        # Para IBGE, dados consolidados são armazenados em cache/ibge/consolidado/
+        if ano == 'consolidado':
+            tipo_dir = fonte_dir / 'consolidado'
+            tipo_dir.mkdir(parents=True, exist_ok=True)
+            parquet_path = tipo_dir / f"{tipo}.parquet"
+        else:
+            ano_dir = fonte_dir / str(ano)
+            ano_dir.mkdir(parents=True, exist_ok=True)
+            parquet_path = ano_dir / f"{tipo}.parquet"
+
+        # Se existe parquet processado, carrega dele (mais rápido e limpo)
+        if parquet_path.exists() and not force_download:
+            try:
+                df = pd.read_parquet(str(parquet_path))
+                return df, None
+            except Exception as e:
+                st.error(f"❌ Erro ao carregar Parquet: {str(e)}")
+                return None, None
+
+        # Busca URL
+        url = None
+        if ano in self.urls and tipo in self.urls[ano]:
+            url = self.urls[ano][tipo]
+        elif 'consolidado' in self.urls and tipo in self.urls['consolidado']:
+            url = self.urls['consolidado'][tipo]
+
+        if not url:
+            st.error(f"❌ URL não encontrada para IBGE/{tipo}")
+            return None, None
+
+        # Baixa o arquivo CSV em memória (não salva em disco ainda)
+        try:
+            response = requests.get(url, stream=True, timeout=30)
+            response.raise_for_status()
+            csv_content = response.text
+        except Exception as e:
+            st.error(f"❌ Erro ao baixar arquivo: {str(e)}")
+            return None, None
+
+        # Carrega o CSV em memória com parâmetros específicos do IBGE
+        # Os CSVs do IBGE têm headers complexos, por isso precisam de tratamento especial
+        try:
+            from io import StringIO
+            
+            df = pd.read_csv(
+                StringIO(csv_content),
+                sep=';',
+                encoding='utf-8',
+                skiprows=5  # Pula linhas de header complexas
+            )
+            
+            # Normaliza nomes de colunas
+            df.columns = [str(col).strip() for col in df.columns]
+            
+            # Salva APENAS em Parquet (nunca salva CSV bruto que vai dar erro)
+            df.to_parquet(str(parquet_path), index=False)
+            
+            return df, None
+        except Exception as e:
+            st.error(f"❌ Erro ao processar dados IBGE: {str(e)}")
+            return None, None
+
+    # =============================================================================
     # MÉTODOS PÚBLICOS
     # =============================================================================
 
@@ -542,8 +622,8 @@ class HTTPDataLoader:
         Returns:
             Tupla (DataFrame, metadados) ou None se erro
         """
-        # Para ANATEL, não valida ano aqui pois usa 'consolidado' nas URLs
-        if self.fonte != 'anatel':
+        # Para ANATEL e IBGE, não valida ano aqui pois usam 'consolidado' nas URLs
+        if self.fonte not in ['anatel', 'ibge']:
             if ano not in self.urls:
                 st.error(f"❌ Dados de {ano} ainda não disponíveis para {self.fonte}")
                 return None, None
@@ -561,6 +641,7 @@ class HTTPDataLoader:
 
         st.error(f"❌ Carregador não implementado para a fonte: {self.fonte}")
         return None, None
+
 
 
     # =============================================================================
