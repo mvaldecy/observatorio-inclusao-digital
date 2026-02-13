@@ -523,7 +523,10 @@ with tab3:
             df_tmp = df_brasil_tempo.copy()
             if 'INSTRUCAO' in df_tmp.columns and instrucao_selecionada:
                 df_tmp = df_tmp[df_tmp['INSTRUCAO'].isin(instrucao_selecionada)]
-            df_evolucao = pd.concat([df_evolucao, df_tmp[['ANO', 'PERCENTUAL']].assign(Série='Brasil')])
+            # Agrupar por ANO para calcular média (evita duplicatas no pivot)
+            df_media_brasil = df_tmp.groupby('ANO')['PERCENTUAL'].mean().reset_index()
+            df_media_brasil['Série'] = 'Brasil'
+            df_evolucao = pd.concat([df_evolucao, df_media_brasil])
     
     # Média das regiões selecionadas
     df_regiao_tempo = df_original[
