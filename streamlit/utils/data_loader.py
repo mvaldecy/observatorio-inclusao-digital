@@ -2,6 +2,7 @@ import sys
 import os
 import streamlit as st
 from .http_loader import HTTPDataLoader
+from .ibge_loader import IBGEDataLoader
 
 # Adiciona a raiz do projeto ao sys.path para permitir importações dos módulos cetic
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -12,6 +13,7 @@ from cetic.domicilios.analisador_domicilios_cetic import AnalisadorDomiciliosCET
 from cetic.individuos.analisador_individuos_cetic import AnalisadorIndividuosCETIC
 from anatel.analisador_anatel import AnalisadorAnatel
 from anatel.analisador_cobertura_movel import AnalisadorCoberturaMovel
+from ibge.analisador_tabela7336 import AnalisadorTabela7336
 
 @st.cache_data
 def carregar_dados_domicilios_cetic(ano: int = 2025, force_download: bool = False):
@@ -252,5 +254,47 @@ def carregar_cobertura_movel_4g_uf_anatel(force_download: bool = False):
         df, _ = resultado
         return df
     return None
+
+
+# ============================================================================
+# IBGE - Instituto Brasileiro de Geografia e Estatística
+# ============================================================================
+
+@st.cache_data
+def carregar_dados_ibge_tabela7336(force_download: bool = False):
+    """
+    Carrega dados da Tabela 7336 do IBGE (Acesso à Internet)
+    
+    Args:
+        force_download: Forçar novo download mesmo se existir cache
+
+    Returns:
+        DataFrame com os dados da tabela 7336 ou None se falhar
+    """
+    loader = IBGEDataLoader()
+    df = loader.carregar_tabela7336(force_download=force_download)
+    return df
+
+
+@st.cache_resource
+def get_analisador_tabela7336(force_download: bool = False):
+    """
+    Retorna uma instância única do AnalisadorTabela7336.
+    O uso de st.cache_resource garante que seja carregado apenas uma vez.
+
+    Args:
+        force_download: Forçar novo download mesmo se existir cache
+
+    Returns:
+        AnalisadorTabela7336 configurado com os dados
+    """
+    # Carrega dados via loader específico do IBGE
+    df = carregar_dados_ibge_tabela7336(force_download)
+
+    if df is None:
+        raise ValueError("Não foi possível carregar dados de acesso à Internet (Tabela 7336) do IBGE")
+
+    # Cria analisador passando df
+    return AnalisadorTabela7336(df=df)
 
 

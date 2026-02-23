@@ -36,14 +36,16 @@ DATA_SOURCES = {
              }
          }
      },
-    # 'ibge': {
-    #     'name': 'IBGE - Instituto Brasileiro de Geografia e Estatística',
-    #     'description': 'Dados demográficos e socioeconômicos',
-    #     'website': 'https://www.ibge.gov.br',
-    #     'urls': {
-    #         2024: {...}
-    #     }
-    # }
+    'ibge': {
+        'name': 'IBGE - Instituto Brasileiro de Geografia e Estatística',
+        'description': 'Dados demográficos e socioeconômicos do Brasil',
+        'website': 'https://www.ibge.gov.br',
+        'urls': {
+            'consolidado': {
+                'tabela-7336': 'https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/dados-ibge-2021-2024/tabela7336.csv'
+            }
+        }
+    }
 }
 
 

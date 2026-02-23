@@ -111,6 +111,86 @@ st.markdown("""
     .tag-blue { background-color: #1e40af; color: white; }
     .tag-green { background-color: #166534; color: white; }
     .tag-purple { background-color: #6b21a8; color: white; }
+    
+    /* Remove todas as bordas laranja/vermelhas de labels, headers e títulos */
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] label,
+    label[data-baseweb="label"],
+    div[data-baseweb="label"] {
+        border: none !important;
+        outline: none !important;
+    }
+    
+    /* Remove bordas em elementos com classe de label */
+    .stSelectbox label,
+    .stMultiSelect label,
+    div[role="option"] {
+        border: none !important;
+        outline: none !important;
+    }
+    
+    /* Remove borda laranja de inputs e selects */
+    [data-baseweb="input"],
+    [data-baseweb="select"],
+    [data-baseweb="combobox"],
+    div[role="listbox"],
+    div[data-baseweb="select"] {
+        border: 1px solid #ccc !important;
+        border-radius: 4px !important;
+        outline: none !important;
+    }
+    
+    /* Remove overlay/borda laranja no focus */
+    [data-baseweb="input"]:focus,
+    [data-baseweb="select"]:focus,
+    [data-baseweb="combobox"]:focus,
+    input:focus {
+        border-color: #0d58ca !important;
+        box-shadow: 0 0 0 1px #0d58ca !important;
+        outline: none !important;
+    }
+    
+    /* Remove bordas de modal/dropdown */
+    div[style*="background"] > div[role="listbox"] {
+        border: 1px solid #ccc !important;
+        outline: none !important;
+    }
+    
+    /* Melhora multiselect appearance */
+    div[data-testid="stMultiSelect"] span {
+        color: #262730 !important;
+        border: none !important;
+    }
+    
+    /* Melhora elementos de input */
+    input {
+        border: 1px solid #ccc !important;
+        border-radius: 4px !important;
+        outline: none !important;
+    }
+    
+    /* Remove qualquer borda vermelha de erro */
+    input:invalid {
+        border-color: #ccc !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    
+    /* Remove bordas em elementos do sidebar */
+    [data-testid="stSidebar"] div[data-baseweb] {
+        border: none !important;
+    }
+    
+    /* Remove cor de highlight laranja */
+    div[style*="rgb(255, 159, 64)"],
+    div[style*="#FF9F40"],
+    div[style*="#ffb3b3"],
+    div[style*="orange"] {
+        border: none !important;
+        box-shadow: none !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1042,9 +1122,79 @@ for col in df.columns:
 if len(binary_columns) == 0:
     st.info("📝 Nenhuma pergunta com respostas Sim/Não foi encontrada nos dados com os filtros aplicados.")
 else:
-    # Mostrar análise de cada pergunta binária
-    for idx, col_name in enumerate(binary_columns, 1):
-        with st.expander(f"📊 Pergunta {idx}: {col_name}", expanded=(idx <= 3)):
+    st.markdown("---")
+    st.markdown("## 📊 Análise de Indicadores")
+    
+    # Organizar indicadores por categorias
+    CATEGORIAS_INDICADORES = {
+        "🌐 Acesso e Conectividade": [],
+        "💻 Equipamentos e Infraestrutura": [],
+        "📶 Tecnologia e Velocidade": [],
+        "🎓 Recursos Educacionais": [],
+        "🔒 Segurança e Privacidade": [],
+        "📊 Outros Indicadores": []
+    }
+    
+    # Categorizar indicadores por palavras-chave
+    for col in binary_columns:
+        col_lower = col.lower()
+        categorizado = False
+        
+        if any(palavra in col_lower for palavra in ['internet', 'conecta', 'acesso', 'banda', 'rede']):
+            CATEGORIAS_INDICADORES["🌐 Acesso e Conectividade"].append(col)
+            categorizado = True
+        elif any(palavra in col_lower for palavra in ['computador', 'equipamento', 'dispositivo', 'laboratorio', 'hardware']):
+            CATEGORIAS_INDICADORES["💻 Equipamentos e Infraestrutura"].append(col)
+            categorizado = True
+        elif any(palavra in col_lower for palavra in ['velocidade', 'fibra', 'tecnologia', '4g', '5g', 'wifi']):
+            CATEGORIAS_INDICADORES["📶 Tecnologia e Velocidade"].append(col)
+            categorizado = True
+        elif any(palavra in col_lower for palavra in ['educacional', 'ensino', 'recurso', 'conteudo', 'pedagogico']):
+            CATEGORIAS_INDICADORES["🎓 Recursos Educacionais"].append(col)
+            categorizado = True
+        elif any(palavra in col_lower for palavra in ['seguranca', 'privacidade', 'filtro', 'protecao']):
+            CATEGORIAS_INDICADORES["🔒 Segurança e Privacidade"].append(col)
+            categorizado = True
+        
+        if not categorizado:
+            CATEGORIAS_INDICADORES["📊 Outros Indicadores"].append(col)
+    
+    # Remover categorias vazias
+    CATEGORIAS_INDICADORES = {k: v for k, v in CATEGORIAS_INDICADORES.items() if len(v) > 0}
+    
+    # Contar total de indicadores
+    total_indicadores = sum(len(v) for v in CATEGORIAS_INDICADORES.values())
+    
+    st.markdown(f"""
+    ### Selecione um Indicador para Análise
+    
+    Escolha a categoria e depois o indicador específico que deseja analisar.
+    
+    **Disponíveis:** {total_indicadores} indicadores do tipo Sim/Não organizados em {len(CATEGORIAS_INDICADORES)} categorias
+    """)
+    
+    # Seleção por categoria primeiro
+    col_cat, col_ind = st.columns([1, 2])
+    
+    with col_cat:
+        selected_category = st.selectbox(
+            "📁 Categoria",
+            options=list(CATEGORIAS_INDICADORES.keys()),
+            help="Selecione uma categoria de indicadores"
+        )
+    
+    with col_ind:
+        selected_indicador = st.selectbox(
+            "📊 Indicador",
+            options=CATEGORIAS_INDICADORES[selected_category],
+            help="Selecione o indicador específico para análise"
+        )
+    
+    # Mostrar análise do indicador selecionado
+    if selected_indicador:
+        st.markdown("---")
+        col_name = selected_indicador
+        with st.container():
             st.markdown(f"**❓ Pergunta analisada:** {col_name}")
             st.caption("👇 Veja quantas escolas responderam SIM ou NÃO")
             
@@ -1145,7 +1295,7 @@ else:
                     showlegend=True
                 )
                 
-                st.plotly_chart(fig, use_container_width=True, key=f"chart_binary_{idx}_{col_name[:20]}")
+                st.plotly_chart(fig, use_container_width=True, key=f"chart_binary_{col_name[:20]}")
 
     # Análise Urbano x Rural
 st.markdown("---")
@@ -1589,11 +1739,11 @@ else:
     st.info("📝 Coluna de localização (Urbano/Rural) não foi detectada automaticamente nos dados.")
     st.caption("💡 **Dica:** Para ver esta análise, certifique-se de que há uma coluna chamada 'localizacao', 'localização', 'loc_diferenciada' ou 'zona' nos dados.")
 
-    # Análise por Estado do Nordeste
-    if col_uf:
+    # Análise por Estado do Nordeste - Apenas para o indicador selecionado
+    if col_uf and 'selected_indicador' in locals() and selected_indicador:
         st.markdown("---")
         st.markdown("### 🌴 Análise Detalhada: Estados do Nordeste")
-        st.caption("💡 Comparação entre todos os estados do Nordeste para cada pergunta")
+        st.caption(f"💡 Comparação entre estados do Nordeste para o indicador selecionado: **{selected_indicador}**")
         
         # Criar máscara para cada estado do Nordeste
         ne_states = {}
@@ -1603,50 +1753,50 @@ else:
                 ne_states[uf] = uf_mask
         
         if len(ne_states) > 0:
-            for idx, col_name in enumerate(binary_columns, 1):
-                with st.expander(f"📊 {col_name} - Comparação por Estado", expanded=(idx == 1)):
-                    st.markdown(f"**Pergunta:** {col_name}")
+            col_name = selected_indicador
+            with st.container():
+                st.markdown(f"**Pergunta:** {col_name}")
+                
+                # Criar tabela comparativa por estado
+                state_comparison = []
+                
+                for state_code, state_mask in sorted(ne_states.items()):
+                    state_counts = df.loc[state_mask, col_name].value_counts()
+                    state_total = df.loc[state_mask, col_name].notna().sum()
                     
-                    # Criar tabela comparativa por estado
-                    state_comparison = []
+                    if state_total > 0:
+                        # Contar Sim e Não
+                        sim_count = 0
+                        nao_count = 0
+                        
+                        for resp, count in state_counts.items():
+                            resp_upper = str(resp).strip().upper()
+                            if resp_upper in {'SIM', 'YES', 'Y', 'S', 'TRUE', 'VERDADEIRO', '1'}:
+                                sim_count += count
+                            elif resp_upper in {'NÃO', 'NAO', 'NO', 'N', 'FALSE', 'FALSO', '0'}:
+                                nao_count += count
+                        
+                        sim_pct = (sim_count / state_total * 100) if state_total > 0 else 0
+                        nao_pct = (nao_count / state_total * 100) if state_total > 0 else 0
+                        
+                        state_comparison.append({
+                            "Estado": state_code,
+                            "Total Escolas": f"{state_total:,}",
+                            "SIM": f"{sim_count:,} ({sim_pct:.1f}%)",
+                            "NÃO": f"{nao_count:,} ({nao_pct:.1f}%)",
+                            "% SIM": sim_pct
+                        })
+                
+                if state_comparison:
+                    # Ordenar por % de SIM (decrescente)
+                    state_comparison.sort(key=lambda x: x["% SIM"], reverse=True)
                     
-                    for state_code, state_mask in sorted(ne_states.items()):
-                        state_counts = df.loc[state_mask, col_name].value_counts()
-                        state_total = df.loc[state_mask, col_name].notna().sum()
-                        
-                        if state_total > 0:
-                            # Contar Sim e Não
-                            sim_count = 0
-                            nao_count = 0
-                            
-                            for resp, count in state_counts.items():
-                                resp_upper = str(resp).strip().upper()
-                                if resp_upper in {'SIM', 'YES', 'Y', 'S', 'TRUE', 'VERDADEIRO', '1'}:
-                                    sim_count += count
-                                elif resp_upper in {'NÃO', 'NAO', 'NO', 'N', 'FALSE', 'FALSO', '0'}:
-                                    nao_count += count
-                            
-                            sim_pct = (sim_count / state_total * 100) if state_total > 0 else 0
-                            nao_pct = (nao_count / state_total * 100) if state_total > 0 else 0
-                            
-                            state_comparison.append({
-                                "Estado": state_code,
-                                "Total Escolas": f"{state_total:,}",
-                                "SIM": f"{sim_count:,} ({sim_pct:.1f}%)",
-                                "NÃO": f"{nao_count:,} ({nao_pct:.1f}%)",
-                                "% SIM": sim_pct
-                            })
+                    # Remover coluna % SIM (era só para ordenação)
+                    for item in state_comparison:
+                        del item["% SIM"]
                     
-                    if state_comparison:
-                        # Ordenar por % de SIM (decrescente)
-                        state_comparison.sort(key=lambda x: x["% SIM"], reverse=True)
-                        
-                        # Remover coluna % SIM (era só para ordenação)
-                        for item in state_comparison:
-                            del item["% SIM"]
-                        
-                        comp_df = pd.DataFrame(state_comparison)
-                        st.dataframe(comp_df, use_container_width=True, hide_index=True)
+                    comp_df = pd.DataFrame(state_comparison)
+                    st.dataframe(comp_df, use_container_width=True, hide_index=True)
                         
                         # Calcular média do Nordeste
 
