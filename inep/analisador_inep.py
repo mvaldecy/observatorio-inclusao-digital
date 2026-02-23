@@ -45,7 +45,8 @@ class AnalisadorINEP:
 
         # Quando usado via data_loader (caso normal no Streamlit)
         if df is not None:
-            self.df = df.copy()  # Cria cópia para evitar modificar o original
+            self.df_original = df.copy()  # Guardar cópia do original
+            self.df = df.copy()  # DataFrame de trabalho
             self.meta = meta
             print(f"✓ Analisador INEP inicializado com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
         elif data_path is not None:
@@ -53,10 +54,12 @@ class AnalisadorINEP:
             print(f"⚠️ Carregando de arquivo local: {data_path}")
             try:
                 if data_path.endswith('.parquet'):
-                    self.df = pd.read_parquet(data_path)
+                    self.df_original = pd.read_parquet(data_path)
+                    self.df = self.df_original.copy()
                     self.meta = None
                 elif data_path.endswith('.csv'):
-                    self.df = pd.read_csv(data_path, sep=';', encoding='utf-8-sig', low_memory=False)
+                    self.df_original = pd.read_csv(data_path, sep=';', encoding='utf-8-sig', low_memory=False)
+                    self.df = self.df_original.copy()
                     self.meta = None
                 else:
                     raise ValueError(f"Formato não suportado: {data_path}")
@@ -300,22 +303,86 @@ class AnalisadorINEP:
 
                     resultado = {
                         label_agregador: label_valor_agregador,
-                        'Agregador_Valor': valor_agregador,
-                        'Total_Grupo': total_grupo,
+                        'Categoria': label_valor_campo,
+                        'Percentual': f"{percentual:.1f}%"
                     }
 
-                    if is_multiple:
-                        resultado['Indicador'] = label_campo
-
-                    resultado.update({
-                        'Categoria': label_valor_campo,
-                        'Valor': valor_campo,
-                        'Total': count,
-                        'Percentual': f"{percentual:.1f}%",
-                        'Percentual_Num': percentual
-                    })
-
                     resultados.append(resultado)
+
+        if not resultados:
+            return None
+
+        return pd.DataFrame(resultados)
+
+    def analisar_por_agregador_quantitativo(self, indicador, campo_agregador: str,
+                                              funcao='sum', df_contexto=None):
+        """
+        Análise quantitativa por agregador usando groupby.
+        Para indicadores numéricos (QT_*), aplica uma função de agregação.
+
+        Args:
+            indicador: Campo ou lista de campos para análise
+            campo_agregador: Nome do campo para agregação
+            funcao: Função de agregação: 'sum', 'mean', 'median', 'count'
+            df_contexto: DataFrame filtrado (opcional)
+
+        Returns:
+            DataFrame com resultados agregados
+        """
+        df = df_contexto if df_contexto is not None else self.df
+
+        if df.empty:
+            return None
+
+        if campo_agregador not in df.columns:
+            print(f"Erro: Campo agregador '{campo_agregador}' não encontrado.")
+            return None
+
+        label_agregador = get_label(campo_agregador)
+        map_agregador = get_valores(campo_agregador) or {}
+
+        is_multiple = isinstance(indicador, list)
+        campos = indicador if is_multiple else [indicador]
+
+        # Verificar que os campos existem
+        campos = [c for c in campos if c in df.columns]
+        if not campos:
+            return None
+
+        resultados = []
+
+        for valor_agregador in sorted(df[campo_agregador].dropna().unique()):
+            df_grupo = df[df[campo_agregador] == valor_agregador]
+            if isinstance(valor_agregador, float) and valor_agregador.is_integer():
+                valor_str = str(int(valor_agregador))
+            else:
+                valor_str = str(valor_agregador)
+            label_valor = map_agregador.get(valor_str, str(valor_agregador))
+
+            for campo in campos:
+                serie = df_grupo[campo].dropna()
+                if serie.empty:
+                    continue
+
+                if funcao == 'sum':
+                    valor_calc = serie.sum()
+                elif funcao == 'mean':
+                    valor_calc = serie.mean()
+                elif funcao == 'median':
+                    valor_calc = serie.median()
+                elif funcao == 'count':
+                    valor_calc = serie.count()
+                else:
+                    valor_calc = serie.sum()
+
+                resultado = {
+                    label_agregador: label_valor,
+                    'Indicador': get_label(campo),
+                    'Indicador_Cod': campo,
+                    'Total': valor_calc,
+                    'Contagem': len(df_grupo),
+                }
+                resultados.append(resultado)
 
         if not resultados:
             return None
@@ -355,9 +422,12 @@ class AnalisadorINEP:
     def resetar_filtros(self):
         """
         Remove todos os filtros aplicados, retornando ao DataFrame original.
-        Nota: Requer reinicialização com os dados originais.
         """
-        print("⚠️ Para resetar filtros, reinicialize o analisador com os dados originais.")
+        if hasattr(self, 'df_original'):
+            self.df = self.df_original.copy()
+            print(f"✓ Filtros resetados. Registros: {len(self.df):,}")
+        else:
+            print("⚠️ DataFrame original não disponível.")
         return self
 
 
