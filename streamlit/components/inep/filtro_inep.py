@@ -169,16 +169,14 @@ class FiltroINEP:
 
         # Botão para limpar filtros no topo
         if st.sidebar.button("🗑️ Limpar Filtros", use_container_width=True, key="limpar_filtros_inep"):
-            # Limpar session state de todos os filtros
-            keys_to_delete = [
-                'filtro_internet', 'filtro_lab', 'filtro_banda', 'filtro_situacao'
-            ]
-            for key in keys_to_delete:
-                if key in st.session_state:
-                    del st.session_state[key]
+            # Incrementar contador para resetar todos os widgets
+            st.session_state.filtro_inep_reset_counter += 1
 
             # Limpar dicionário de filtros aplicados
             self.filtros_aplicados.clear()
+
+            # Resetar DataFrame do analisador
+            self.analisador.resetar_filtros()
 
             # Recarregar página
             st.rerun()

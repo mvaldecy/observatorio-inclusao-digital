@@ -45,7 +45,8 @@ class AnalisadorINEP:
 
         # Quando usado via data_loader (caso normal no Streamlit)
         if df is not None:
-            self.df = df.copy()  # Cria cópia para evitar modificar o original
+            self.df_original = df.copy()  # Guardar cópia do original
+            self.df = df.copy()  # DataFrame de trabalho
             self.meta = meta
             print(f"✓ Analisador INEP inicializado com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
         elif data_path is not None:
@@ -53,10 +54,12 @@ class AnalisadorINEP:
             print(f"⚠️ Carregando de arquivo local: {data_path}")
             try:
                 if data_path.endswith('.parquet'):
-                    self.df = pd.read_parquet(data_path)
+                    self.df_original = pd.read_parquet(data_path)
+                    self.df = self.df_original.copy()
                     self.meta = None
                 elif data_path.endswith('.csv'):
-                    self.df = pd.read_csv(data_path, sep=';', encoding='utf-8-sig', low_memory=False)
+                    self.df_original = pd.read_csv(data_path, sep=';', encoding='utf-8-sig', low_memory=False)
+                    self.df = self.df_original.copy()
                     self.meta = None
                 else:
                     raise ValueError(f"Formato não suportado: {data_path}")
@@ -300,20 +303,9 @@ class AnalisadorINEP:
 
                     resultado = {
                         label_agregador: label_valor_agregador,
-                        'Agregador_Valor': valor_agregador,
-                        'Total_Grupo': total_grupo,
-                    }
-
-                    if is_multiple:
-                        resultado['Indicador'] = label_campo
-
-                    resultado.update({
                         'Categoria': label_valor_campo,
-                        'Valor': valor_campo,
-                        'Total': count,
-                        'Percentual': f"{percentual:.1f}%",
-                        'Percentual_Num': percentual
-                    })
+                        'Percentual': f"{percentual:.1f}%"
+                    }
 
                     resultados.append(resultado)
 
@@ -385,10 +377,9 @@ class AnalisadorINEP:
 
                 resultado = {
                     label_agregador: label_valor,
-                    'Agregador_Valor': valor_agregador,
                     'Indicador': get_label(campo),
                     'Indicador_Cod': campo,
-                    'Valor': valor_calc,
+                    'Total': valor_calc,
                     'Contagem': len(df_grupo),
                 }
                 resultados.append(resultado)
@@ -431,9 +422,12 @@ class AnalisadorINEP:
     def resetar_filtros(self):
         """
         Remove todos os filtros aplicados, retornando ao DataFrame original.
-        Nota: Requer reinicialização com os dados originais.
         """
-        print("⚠️ Para resetar filtros, reinicialize o analisador com os dados originais.")
+        if hasattr(self, 'df_original'):
+            self.df = self.df_original.copy()
+            print(f"✓ Filtros resetados. Registros: {len(self.df):,}")
+        else:
+            print("⚠️ DataFrame original não disponível.")
         return self
 
 

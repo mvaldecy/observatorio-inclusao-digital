@@ -325,54 +325,54 @@ if not usar_agregador:
         with col_r2:
             st.markdown("#### 📈 Visualização")
 
-            if 'Percentual' in resultado.columns and 'Descrição' in resultado.columns:
+            if 'Percentual' in resultado.columns and 'Categoria' in resultado.columns:
                 resultado = resultado.copy()
                 resultado['Percentual_Num'] = resultado['Percentual'].str.replace('%', '').astype(float)
 
                 if tipo_grafico == 'bar':
-                    fig = px.bar(resultado, x='Descrição', y='Percentual_Num', text='Percentual',
-                                 title=label_indicador, labels={'Percentual_Num': 'Percentual (%)', 'Descrição': ''},
+                    fig = px.bar(resultado, x='Categoria', y='Percentual_Num', text='Percentual',
+                                 title=label_indicador, labels={'Percentual_Num': 'Percentual (%)', 'Categoria': ''},
                                  color='Percentual_Num', color_continuous_scale='Viridis')
                     fig.update_traces(textposition='outside')
                 elif tipo_grafico == 'barh':
-                    fig = px.bar(resultado, y='Descrição', x='Percentual_Num', text='Percentual',
+                    fig = px.bar(resultado, y='Categoria', x='Percentual_Num', text='Percentual',
                                  title=label_indicador, orientation='h',
-                                 labels={'Percentual_Num': 'Percentual (%)', 'Descrição': ''},
+                                 labels={'Percentual_Num': 'Percentual (%)', 'Categoria': ''},
                                  color='Percentual_Num', color_continuous_scale='Viridis')
                     fig.update_traces(textposition='outside')
                 elif tipo_grafico == 'pie':
-                    fig = px.pie(resultado, names='Descrição', values='Percentual_Num',
+                    fig = px.pie(resultado, names='Categoria', values='Percentual_Num',
                                  title=label_indicador)
                 elif tipo_grafico == 'line':
-                    fig = px.line(resultado, x='Descrição', y='Percentual_Num',
+                    fig = px.line(resultado, x='Categoria', y='Percentual_Num',
                                   title=label_indicador, markers=True,
-                                  labels={'Percentual_Num': 'Percentual (%)', 'Descrição': ''})
+                                  labels={'Percentual_Num': 'Percentual (%)', 'Categoria': ''})
                 elif tipo_grafico == 'treemap':
-                    fig = px.treemap(resultado, path=['Descrição'], values='Percentual_Num',
+                    fig = px.treemap(resultado, path=['Categoria'], values='Percentual_Num',
                                      title=label_indicador)
                 else:
-                    fig = px.bar(resultado, x='Descrição', y='Percentual_Num', text='Percentual',
+                    fig = px.bar(resultado, x='Categoria', y='Percentual_Num', text='Percentual',
                                  title=label_indicador)
 
                 fig.update_layout(showlegend=False, height=450)
                 st.plotly_chart(fig, use_container_width=True)
 
-            elif 'Total' in resultado.columns and 'Descrição' in resultado.columns:
+            elif 'Total' in resultado.columns and 'Categoria' in resultado.columns:
                 if tipo_grafico in ('bar', 'barh'):
                     orient = 'h' if tipo_grafico == 'barh' else 'v'
-                    x_col = 'Total' if orient == 'h' else 'Descrição'
-                    y_col = 'Descrição' if orient == 'h' else 'Total'
+                    x_col = 'Total' if orient == 'h' else 'Categoria'
+                    y_col = 'Categoria' if orient == 'h' else 'Total'
                     fig = px.bar(resultado, x=x_col, y=y_col, text='Total', title=label_indicador,
                                  orientation=orient, color='Total', color_continuous_scale='Blues')
                     fig.update_traces(textposition='outside')
                 elif tipo_grafico == 'pie':
-                    fig = px.pie(resultado, names='Descrição', values='Total', title=label_indicador)
+                    fig = px.pie(resultado, names='Categoria', values='Total', title=label_indicador)
                 elif tipo_grafico == 'line':
-                    fig = px.line(resultado, x='Descrição', y='Total', title=label_indicador, markers=True)
+                    fig = px.line(resultado, x='Categoria', y='Total', title=label_indicador, markers=True)
                 elif tipo_grafico == 'treemap':
-                    fig = px.treemap(resultado, path=['Descrição'], values='Total', title=label_indicador)
+                    fig = px.treemap(resultado, path=['Categoria'], values='Total', title=label_indicador)
                 else:
-                    fig = px.bar(resultado, x='Descrição', y='Total', text='Total', title=label_indicador)
+                    fig = px.bar(resultado, x='Categoria', y='Total', text='Total', title=label_indicador)
                 fig.update_layout(showlegend=False, height=450)
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -396,66 +396,79 @@ else:
 
     if resultado_agg is not None and not resultado_agg.empty:
         st.markdown(f"#### 📊 Resultados por {agregador_selecionado}")
-        st.dataframe(resultado_agg, use_container_width=True, hide_index=True)
+
+        # Adicionar Percentual_Num se houver coluna Percentual (para uso em gráficos)
+        if 'Percentual' in resultado_agg.columns:
+            resultado_agg = resultado_agg.copy()
+            resultado_agg['Percentual_Num'] = resultado_agg['Percentual'].str.replace('%', '').astype(float)
+
+        # Remover colunas indesejadas antes de exibir
+        colunas_remover = ['Percentual_Num', 'Agregador_Valor', 'Total_Grupo', 'Valor']
+        # Para análises categóricas, também remover Total
+        if 'Percentual' in resultado_agg.columns:
+            colunas_remover.append('Total')
+
+        colunas_exibir = [c for c in resultado_agg.columns if c not in colunas_remover]
+        st.dataframe(resultado_agg[colunas_exibir], use_container_width=True, hide_index=True)
 
         st.markdown("#### 📈 Visualização")
 
         col_grupo = resultado_agg.columns[0]
 
         # ---- Indicadores quantitativos agrupados ----
-        if todos_quantitativos and funcao_agg and 'Valor' in resultado_agg.columns:
+        if todos_quantitativos and funcao_agg and 'Total' in resultado_agg.columns:
             y_label = f"{funcao_label}"
 
             if is_multiple:
                 if tipo_grafico == 'bar':
-                    fig = px.bar(resultado_agg, x=col_grupo, y='Valor', color='Indicador',
-                                 barmode='group', text='Valor',
+                    fig = px.bar(resultado_agg, x=col_grupo, y='Total', color='Indicador',
+                                 barmode='group', text='Total',
                                  title=f"{selected_indicador_key} por {agregador_selecionado} ({funcao_label})",
-                                 labels={'Valor': y_label})
+                                 labels={'Total': y_label})
                 elif tipo_grafico == 'barh':
-                    fig = px.bar(resultado_agg, y=col_grupo, x='Valor', color='Indicador',
-                                 barmode='group', text='Valor', orientation='h',
+                    fig = px.bar(resultado_agg, y=col_grupo, x='Total', color='Indicador',
+                                 barmode='group', text='Total', orientation='h',
                                  title=f"{selected_indicador_key} por {agregador_selecionado} ({funcao_label})",
-                                 labels={'Valor': y_label})
+                                 labels={'Total': y_label})
                 elif tipo_grafico == 'line':
-                    fig = px.line(resultado_agg, x=col_grupo, y='Valor', color='Indicador',
+                    fig = px.line(resultado_agg, x=col_grupo, y='Total', color='Indicador',
                                   markers=True,
                                   title=f"{selected_indicador_key} por {agregador_selecionado} ({funcao_label})",
-                                  labels={'Valor': y_label})
+                                  labels={'Total': y_label})
                 elif tipo_grafico == 'pie':
                     # Para pizza com múltiplos, fazer sunburst
-                    fig = px.sunburst(resultado_agg, path=[col_grupo, 'Indicador'], values='Valor',
+                    fig = px.sunburst(resultado_agg, path=[col_grupo, 'Indicador'], values='Total',
                                       title=f"{selected_indicador_key} por {agregador_selecionado} ({funcao_label})")
                 elif tipo_grafico == 'treemap':
-                    fig = px.treemap(resultado_agg, path=[col_grupo, 'Indicador'], values='Valor',
+                    fig = px.treemap(resultado_agg, path=[col_grupo, 'Indicador'], values='Total',
                                      title=f"{selected_indicador_key} por {agregador_selecionado} ({funcao_label})")
                 else:
-                    fig = px.bar(resultado_agg, x=col_grupo, y='Valor', color='Indicador',
+                    fig = px.bar(resultado_agg, x=col_grupo, y='Total', color='Indicador',
                                  barmode='group', title=selected_indicador_key)
             else:
                 if tipo_grafico == 'bar':
-                    fig = px.bar(resultado_agg, x=col_grupo, y='Valor', text='Valor',
+                    fig = px.bar(resultado_agg, x=col_grupo, y='Total', text='Total',
                                  title=f"{label_indicador} por {agregador_selecionado} ({funcao_label})",
-                                 labels={'Valor': y_label}, color='Valor', color_continuous_scale='Blues')
+                                 labels={'Total': y_label}, color='Total', color_continuous_scale='Blues')
                     fig.update_traces(textposition='outside', texttemplate='%{text:,.0f}')
                 elif tipo_grafico == 'barh':
-                    fig = px.bar(resultado_agg, y=col_grupo, x='Valor', text='Valor',
+                    fig = px.bar(resultado_agg, y=col_grupo, x='Total', text='Total',
                                  title=f"{label_indicador} por {agregador_selecionado} ({funcao_label})",
-                                 orientation='h', labels={'Valor': y_label},
-                                 color='Valor', color_continuous_scale='Blues')
+                                 orientation='h', labels={'Total': y_label},
+                                 color='Total', color_continuous_scale='Blues')
                     fig.update_traces(textposition='outside', texttemplate='%{text:,.0f}')
                 elif tipo_grafico == 'pie':
-                    fig = px.pie(resultado_agg, names=col_grupo, values='Valor',
+                    fig = px.pie(resultado_agg, names=col_grupo, values='Total',
                                  title=f"{label_indicador} por {agregador_selecionado} ({funcao_label})")
                 elif tipo_grafico == 'line':
-                    fig = px.line(resultado_agg, x=col_grupo, y='Valor', markers=True,
+                    fig = px.line(resultado_agg, x=col_grupo, y='Total', markers=True,
                                   title=f"{label_indicador} por {agregador_selecionado} ({funcao_label})",
-                                  labels={'Valor': y_label})
+                                  labels={'Total': y_label})
                 elif tipo_grafico == 'treemap':
-                    fig = px.treemap(resultado_agg, path=[col_grupo], values='Valor',
+                    fig = px.treemap(resultado_agg, path=[col_grupo], values='Total',
                                      title=f"{label_indicador} por {agregador_selecionado} ({funcao_label})")
                 else:
-                    fig = px.bar(resultado_agg, x=col_grupo, y='Valor', text='Valor',
+                    fig = px.bar(resultado_agg, x=col_grupo, y='Total', text='Total',
                                  title=label_indicador)
 
         # ---- Indicadores categóricos agrupados ----
