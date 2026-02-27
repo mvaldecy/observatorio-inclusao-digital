@@ -12,6 +12,19 @@ import zipfile
 from .data_sources import get_fonte_urls, get_fonte_info, list_fontes
 
 
+def _log_error(mensagem: str):
+    """
+    Exibe erro usando streamlit se disponível, caso contrário usa print
+    """
+    try:
+        if hasattr(st, 'error'):
+            _log_error(mensagem)
+        else:
+            print(mensagem)
+    except:
+        print(mensagem)
+
+
 class HTTPDataLoader:
     """
     Carrega dados via HTTP com cache local
@@ -102,12 +115,12 @@ class HTTPDataLoader:
             return True
 
         except requests.exceptions.RequestException as e:
-            st.error(f"❌ Erro no download: {str(e)}")
+            _log_error(f"❌ Erro no download: {str(e)}")
             if destino.exists():
                 destino.unlink()
             return False
         except Exception as e:
-            st.error(f"❌ Erro inesperado: {str(e)}")
+            _log_error(f"❌ Erro inesperado: {str(e)}")
             if destino.exists():
                 destino.unlink()
             return False
@@ -235,7 +248,7 @@ class HTTPDataLoader:
             df = pd.read_excel(temp_xlsx, engine='openpyxl')
 
             if df is None or df.empty:
-                st.error(f"❌ Arquivo Excel está vazio")
+                _log_error(f"❌ Arquivo Excel está vazio")
                 return False
 
             # Limpa e otimiza o DataFrame
@@ -249,9 +262,9 @@ class HTTPDataLoader:
             return True
 
         except Exception as e:
-            st.error(f"❌ Erro ao baixar/converter cobertura móvel: {str(e)}")
+            _log_error(f"❌ Erro ao baixar/converter cobertura móvel: {str(e)}")
             import traceback
-            st.error(f"Detalhes: {traceback.format_exc()}")
+            _log_error(f"Detalhes: {traceback.format_exc()}")
             return False
         finally:
             # Limpa o diretório temporário
@@ -307,7 +320,7 @@ class HTTPDataLoader:
             mapeamento = self._filtrar_csvs_setembro(csv_paths)
 
             if not mapeamento:
-                st.error("❌ Nenhum arquivo com sufixo -09 (setembro) encontrado")
+                _log_error("❌ Nenhum arquivo com sufixo -09 (setembro) encontrado")
                 return False
 
             sucesso_total = True
@@ -335,13 +348,13 @@ class HTTPDataLoader:
                     df.to_parquet(destino_parquet, compression='snappy', engine='pyarrow')
 
                 except Exception as e:
-                    st.error(f"❌ Erro ao processar ano {ano}: {str(e)}")
+                    _log_error(f"❌ Erro ao processar ano {ano}: {str(e)}")
                     sucesso_total = False
 
             return sucesso_total
 
         except Exception as e:
-            st.error(f"❌ Erro no processamento: {str(e)}")
+            _log_error(f"❌ Erro no processamento: {str(e)}")
             return False
 
     def _download_and_extract_zip(self, url: str, tipo: str) -> bool:
@@ -370,7 +383,7 @@ class HTTPDataLoader:
                     csv_files = [f for f in nomes_arquivos if f.endswith('.csv')]
 
                     if not csv_files:
-                        st.error(f"❌ Nenhum CSV encontrado dentro do arquivo ZIP")
+                        _log_error(f"❌ Nenhum CSV encontrado dentro do arquivo ZIP")
                         return False
 
                     z.extractall(temp_dir)
@@ -381,7 +394,7 @@ class HTTPDataLoader:
                 return sucesso_processamento
 
         except Exception as e:
-            st.error(f"❌ Erro ao extrair ZIP: {str(e)}")
+            _log_error(f"❌ Erro ao extrair ZIP: {str(e)}")
             return False
         finally:
             # Limpa todo o diretório temporário
@@ -422,7 +435,7 @@ class HTTPDataLoader:
                     df = pd.read_parquet(str(parquet_path))
                     return df, None
                 except Exception as e:
-                    st.error(f"❌ Erro ao carregar parquet: {str(e)}")
+                    _log_error(f"❌ Erro ao carregar parquet: {str(e)}")
                     return None, None
 
             # Busca URL no consolidado
@@ -431,7 +444,7 @@ class HTTPDataLoader:
                 url = self.urls['consolidado'][tipo]
 
             if not url:
-                st.error(f"❌ URL não encontrada para {tipo}")
+                _log_error(f"❌ URL não encontrada para {tipo}")
                 return None, None
 
             # Baixa e converte (todos são Excel)
@@ -439,7 +452,7 @@ class HTTPDataLoader:
                 if not self._download_and_convert_xlsx_to_parquet(url, tipo):
                     return None, None
             else:
-                st.error(f"❌ Formato não suportado: {url}")
+                _log_error(f"❌ Formato não suportado: {url}")
                 return None, None
 
             # Carrega o parquet gerado
@@ -448,10 +461,10 @@ class HTTPDataLoader:
                     df = pd.read_parquet(str(parquet_path))
                     return df, None
                 except Exception as e:
-                    st.error(f"❌ Erro ao carregar parquet: {str(e)}")
+                    _log_error(f"❌ Erro ao carregar parquet: {str(e)}")
                     return None, None
             else:
-                st.error(f"❌ Falha ao criar parquet para {tipo}")
+                _log_error(f"❌ Falha ao criar parquet para {tipo}")
                 return None, None
 
         # Datasets baseados em ano: conectividade-escola, etc
@@ -466,7 +479,7 @@ class HTTPDataLoader:
                 df = pd.read_parquet(str(parquet_path))
                 return df, None
             except Exception as e:
-                st.error(f"❌ Erro ao carregar parquet: {str(e)}")
+                _log_error(f"❌ Erro ao carregar parquet: {str(e)}")
                 return None, None
 
         # Busca URL (ano específico ou consolidado)
@@ -477,7 +490,7 @@ class HTTPDataLoader:
             url = self.urls['consolidado'][tipo]
 
         if not url:
-            st.error(f"❌ URL não encontrada para {tipo} (ano {ano})")
+            _log_error(f"❌ URL não encontrada para {tipo} (ano {ano})")
             return None, None
 
         # Baixa e processa o ZIP (cria parquets para todos os anos)
@@ -490,10 +503,10 @@ class HTTPDataLoader:
                 df = pd.read_parquet(str(parquet_path))
                 return df, None
             except Exception as e:
-                st.error(f"❌ Erro ao carregar parquet: {str(e)}")
+                _log_error(f"❌ Erro ao carregar parquet: {str(e)}")
                 return None, None
         else:
-            st.error(f"❌ Dados de {ano} não encontrados no ZIP")
+            _log_error(f"❌ Dados de {ano} não encontrados no ZIP")
             return None, None
 
     # =============================================================================
@@ -523,7 +536,7 @@ class HTTPDataLoader:
             df, meta = pyreadstat.read_sav(str(cache_path))
             return df, meta
         except Exception as e:
-            st.error(f"❌ Erro ao processar arquivo SAV {cache_path.name}: {str(e)}")
+            _log_error(f"❌ Erro ao processar arquivo SAV {cache_path.name}: {str(e)}")
             return None, None
 
     # =============================================================================
@@ -560,7 +573,7 @@ class HTTPDataLoader:
                 df = pd.read_parquet(str(parquet_path))
                 return df, None
             except Exception as e:
-                st.error(f"❌ Erro ao carregar Parquet: {str(e)}")
+                _log_error(f"❌ Erro ao carregar Parquet: {str(e)}")
                 return None, None
 
         # Busca URL
@@ -571,7 +584,7 @@ class HTTPDataLoader:
             url = self.urls['consolidado'][tipo]
 
         if not url:
-            st.error(f"❌ URL não encontrada para IBGE/{tipo}")
+            _log_error(f"❌ URL não encontrada para IBGE/{tipo}")
             return None, None
 
         # Baixa o arquivo CSV em memória (não salva em disco ainda)
@@ -580,7 +593,7 @@ class HTTPDataLoader:
             response.raise_for_status()
             csv_content = response.text
         except Exception as e:
-            st.error(f"❌ Erro ao baixar arquivo: {str(e)}")
+            _log_error(f"❌ Erro ao baixar arquivo: {str(e)}")
             return None, None
 
         # Carrega o CSV em memória com parâmetros específicos do IBGE
@@ -603,8 +616,176 @@ class HTTPDataLoader:
             
             return df, None
         except Exception as e:
-            st.error(f"❌ Erro ao processar dados IBGE: {str(e)}")
+            _log_error(f"❌ Erro ao processar dados IBGE: {str(e)}")
             return None, None
+
+    # =============================================================================
+    # MÉTODOS ESPECÍFICOS DO PCD
+    # =============================================================================
+
+    def _carregar_pcd(self, ano: any, tipo: str, force_download: bool = False) -> Optional[Tuple[pd.DataFrame, any]]:
+        """
+        Carrega dados PCD (arquivos XLSX do GitHub Releases)
+        Arquivo tem 2 abas:
+        - Planilha1: dados populacionais por município  
+        - Planilha25: dados de alfabetização e raça/cor por município
+
+        Args:
+            ano: Ano dos dados
+            tipo: Tipo dos dados (ex: 'dados-pcd')
+            force_download: Forçar download mesmo se existir cache
+
+        Returns:
+            Tupla (DataFrame, None) ou None se erro
+        """
+        fonte_dir = self.cache_dir / self.fonte
+        ano_dir = fonte_dir / str(ano)
+        ano_dir.mkdir(parents=True, exist_ok=True)
+        
+        parquet_path = ano_dir / f"{tipo}.parquet"
+
+        # Se existe parquet processado, carrega dele (mais rápido)
+        if parquet_path.exists() and not force_download:
+            try:
+                df = pd.read_parquet(str(parquet_path))
+                return df, None
+            except Exception as e:
+                _log_error(f"❌ Erro ao carregar Parquet: {str(e)}")
+                return None, None
+
+        # Busca URL
+        url = None
+        if ano in self.urls and tipo in self.urls[ano]:
+            url = self.urls[ano][tipo]
+        
+        if not url:
+            _log_error(f"❌ URL não encontrada para PCD/{ano}/{tipo}")
+            return None, None
+
+        # Baixa arquivo XLSX
+        temp_dir = fonte_dir / 'temp'
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_xlsx = temp_dir / f'{tipo}.xlsx'
+
+        try:
+            # Download
+            if not self._download_file(url, temp_xlsx):
+                return None, None
+
+            # Lê as abas relevantes do arquivo
+            # População_2022: dados populacionais 2022
+            df_pop2022 = pd.read_excel(temp_xlsx, sheet_name='População_2022', engine='openpyxl')
+            
+            # População_2010: dados populacionais 2010  
+            df_pop2010 = pd.read_excel(temp_xlsx, sheet_name='População_2010', engine='openpyxl')
+            
+            # Planilha25: alfabetização por raça/cor
+            df_alfa = pd.read_excel(temp_xlsx, sheet_name='Planilha25', engine='openpyxl')
+            
+            # Merge dos dados de população
+            df = pd.merge(
+                df_pop2022,
+                df_pop2010,
+                on='Município',
+                how='inner',
+                suffixes=('_2022', '_2010')
+            )
+            
+            # Renomeia colunas de população
+            df.columns = ['municipio', 'populacao_2022', 'populacao_2010']
+            
+            # Calcula variação populacional
+            df['variacao_populacao'] = df['populacao_2022'] - df['populacao_2010']
+            
+            # Merge com dados de alfabetização (Planilha25)
+            # Primeiro renomeia a coluna Município para fazer match
+            df_alfa = df_alfa.rename(columns={'Município': 'municipio'})
+            
+            # Remove a segunda coluna (Unnamed: 1) se existir
+            if 'Unnamed: 1' in df_alfa.columns:
+                df_alfa = df_alfa.drop(columns=['Unnamed: 1'])
+            
+            # Merge
+            df = pd.merge(
+                df,
+                df_alfa,
+                on='municipio',
+                how='left'
+            )
+            
+            # Renomeia colunas de alfabetização
+            rename_map = {
+                'Branca': 'pop_branca',
+                'Preta': 'pop_preta',
+                'Amarela': 'pop_amarela',
+                'Parda': 'pop_parda',
+                'Indígena': 'pop_indigena',
+                'alafabetização': 'taxa_alfabetizacao_geral',
+                'Taxa de alfabetização das pessoas indígenas': 'taxa_alfa_indigena',
+                'Branca.1': 'taxa_alfa_branca',
+                'Preta.1': 'taxa_alfa_preta',
+                'Amarela.1': 'taxa_alfa_amarela',
+                'Parda.1': 'taxa_alfa_parda'
+            }
+            
+            # Renomeia apenas colunas que existem
+            for old_name, new_name in rename_map.items():
+                if old_name in df.columns:
+                    df = df.rename(columns={old_name: new_name})
+            
+            # Adiciona informações geográficas
+            df['uf'] = 'PI'
+            df['estado'] = 'Piauí'
+            df['regiao'] = 'Nordeste'
+            df['ano'] = ano
+            
+            # Calcula população total por raça/cor
+            df['populacao_total'] = (
+                pd.to_numeric(df.get('pop_branca', 0), errors='coerce').fillna(0) + 
+                pd.to_numeric(df.get('pop_preta', 0), errors='coerce').fillna(0) + 
+                pd.to_numeric(df.get('pop_amarela', 0), errors='coerce').fillna(0) + 
+                pd.to_numeric(df.get('pop_parda', 0), errors='coerce').fillna(0) + 
+                pd.to_numeric(df.get('pop_indigena', 0), errors='coerce').fillna(0)
+            )
+            
+            # Calcula percentuais por raça/cor
+            for raca in ['branca', 'preta', 'amarela', 'parda', 'indigena']:
+                col_pop = f'pop_{raca}'
+                col_perc = f'perc_{raca}'
+                if col_pop in df.columns:
+                    df[col_perc] = (pd.to_numeric(df[col_pop], errors='coerce') / df['populacao_total'] * 100).round(2)
+            
+            # Remove registros sem dados essenciais
+            df = df.dropna(subset=['municipio'])
+            
+            if df.empty:
+                _log_error(f"❌ Nenhum dado válido encontrado após processamento")
+                return None, None
+
+            # Limpa e otimiza o DataFrame
+            df = self._limpar_colunas(df)
+            df = self._preparar_dataframe(df, aplicar_categorizacao=True)
+
+            # Salva como parquet
+            df.to_parquet(parquet_path, compression='snappy', engine='pyarrow')
+            
+            print(f"✓ Dados PCD processados: {len(df)} municípios do Piauí")
+
+            return df, None
+
+        except Exception as e:
+            _log_error(f"❌ Erro ao baixar/processar dados PCD: {str(e)}")
+            import traceback
+            _log_error(f"Detalhes: {traceback.format_exc()}")
+            return None, None
+        finally:
+            # Limpa o diretório temporário
+            if temp_dir.exists():
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                except:
+                    pass
 
     # =============================================================================
     # MÉTODOS PÚBLICOS
@@ -622,14 +803,14 @@ class HTTPDataLoader:
         Returns:
             Tupla (DataFrame, metadados) ou None se erro
         """
-        # Para ANATEL e IBGE, não valida ano aqui pois usam 'consolidado' nas URLs
-        if self.fonte not in ['anatel', 'ibge']:
+        # Para ANATEL, IBGE e PCD, não valida ano aqui pois usam 'consolidado' nas URLs
+        if self.fonte not in ['anatel', 'ibge', 'pcd']:
             if ano not in self.urls:
-                st.error(f"❌ Dados de {ano} ainda não disponíveis para {self.fonte}")
+                _log_error(f"❌ Dados de {ano} ainda não disponíveis para {self.fonte}")
                 return None, None
 
             if tipo not in self.urls[ano]:
-                st.error(f"❌ Tipo '{tipo}' não disponível para {self.fonte}/{ano}")
+                _log_error(f"❌ Tipo '{tipo}' não disponível para {self.fonte}/{ano}")
                 return None, None
 
         # Chama o método específico da fonte
@@ -639,7 +820,7 @@ class HTTPDataLoader:
         if metodo_loader:
             return metodo_loader(ano, tipo, force_download)
 
-        st.error(f"❌ Carregador não implementado para a fonte: {self.fonte}")
+        _log_error(f"❌ Carregador não implementado para a fonte: {self.fonte}")
         return None, None
 
 

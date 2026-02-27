@@ -15,3 +15,17 @@ def render_header(title: str, icon: str = "🌐"):
     st.title(f"{icon} {title}")
     st.markdown("---")
 
+
+def criar_header(titulo: str, descricao: str = "", icon: str = "🌐"):
+    """
+    Cria header completo com título e descrição
+    
+    Args:
+        titulo: Título da página
+        descricao: Descrição/subtítulo (opcional)
+        icon: Ícone emoji (opcional)
+    """
+    st.title(f"{icon} {titulo}")
+    if descricao:
+        st.markdown(descricao)
+    st.markdown("---")
