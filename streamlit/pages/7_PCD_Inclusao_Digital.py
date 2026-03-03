@@ -69,6 +69,33 @@ def build_series(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
     return pd.DataFrame(dados)
 
 
+def preparar_visualizacao(df_base: pd.DataFrame, base_percentual: float) -> pd.DataFrame:
+    df_out = df_base.copy()
+    if base_percentual > 0 and 'Quantidade' in df_out.columns:
+        df_out['Percentual'] = (df_out['Quantidade'] / base_percentual) * 100
+    else:
+        df_out['Percentual'] = 0.0
+    return df_out
+
+
+def exibir_grafico_barras(df_plot: pd.DataFrame, x_col: str, modo: str, titulo: str, y_label: str = ""):
+    if df_plot.empty:
+        return
+
+    if modo == 'Percentual (%)':
+        y_col = 'Percentual'
+        texttemplate = '%{text:.2f}%'
+    else:
+        y_col = 'Quantidade'
+        texttemplate = '%{text:,.0f}'
+
+    fig = px.bar(df_plot, x=x_col, y=y_col, text=y_col, title=titulo)
+    fig.update_traces(texttemplate=texttemplate, textposition='outside')
+    if y_label:
+        fig.update_yaxes(title=y_label)
+    st.plotly_chart(fig, use_container_width=True)
+
+
 # ============================================================================
 # Sidebar
 # ============================================================================
@@ -95,13 +122,13 @@ if df.empty:
     st.stop()
 
 municipios = sorted(df['MUNICIPIO'].dropna().unique().tolist()) if 'MUNICIPIO' in df.columns else []
-municipios_sel = st.sidebar.multiselect(
-    "🏙️ Municípios",
-    options=municipios,
-    default=[]
+municipio_sel = st.sidebar.selectbox(
+    "🏙️ Município",
+    options=['Todos'] + municipios,
+    index=0
 )
-if municipios_sel:
-    df = df[df['MUNICIPIO'].isin(municipios_sel)]
+if municipio_sel != 'Todos':
+    df = df[df['MUNICIPIO'] == municipio_sel]
 
 faixas_idade_map = {
     '2 a 4 anos': 'PCD_IDADE_2_4',
@@ -136,6 +163,13 @@ faixas_sel = st.sidebar.multiselect(
     "👶 Idades (deficiência)",
     options=faixas_disponiveis,
     default=faixas_disponiveis
+)
+
+modo_visualizacao = st.sidebar.radio(
+    "📐 Exibir valores",
+    options=['Número de pessoas', 'Percentual (%)', 'Ambos'],
+    index=2,
+    help="Escolha se os gráficos e tabelas exibem contagem, percentual ou ambos"
 )
 
 st.sidebar.success(f"✅ {len(df):,} municípios no recorte")
@@ -181,6 +215,12 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 
+if municipio_sel == 'Todos':
+    st.info("Exibindo agregação de todos os municípios do recorte.")
+else:
+    st.info(f"Exibindo dados do município selecionado: **{municipio_sel}**")
+
+
 with tab1:
     st.markdown("### ♿ Pessoas de 2 anos ou mais: com e sem deficiência")
 
@@ -195,14 +235,24 @@ with tab1:
 
     c1, c2 = st.columns(2)
     with c1:
-        fig = px.bar(
-            comparativo,
-            x='Grupo',
-            y='Quantidade',
-            text='Percentual',
-            title='Quantidade de pessoas com e sem deficiência (2+ anos)'
-        )
-        fig.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
+        if modo_visualizacao == 'Percentual (%)':
+            fig = px.bar(
+                comparativo,
+                x='Grupo',
+                y='Percentual',
+                text='Percentual',
+                title='Pessoas com e sem deficiência (2+ anos)'
+            )
+            fig.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
+        else:
+            fig = px.bar(
+                comparativo,
+                x='Grupo',
+                y='Quantidade',
+                text='Quantidade',
+                title='Pessoas com e sem deficiência (2+ anos)'
+            )
+            fig.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
         st.plotly_chart(fig, use_container_width=True)
 
     with c2:
@@ -214,7 +264,12 @@ with tab1:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    st.dataframe(comparativo, use_container_width=True, hide_index=True)
+    if modo_visualizacao == 'Número de pessoas':
+        st.dataframe(comparativo[['Grupo', 'Quantidade']], use_container_width=True, hide_index=True)
+    elif modo_visualizacao == 'Percentual (%)':
+        st.dataframe(comparativo[['Grupo', 'Percentual']], use_container_width=True, hide_index=True)
+    else:
+        st.dataframe(comparativo, use_container_width=True, hide_index=True)
 
 
 with tab2:
@@ -222,15 +277,21 @@ with tab2:
 
     st.markdown("#### Idade (pessoas com deficiência)")
     idade_map_filtrado = {k: v for k, v in faixas_idade_map.items() if k in faixas_sel}
-    df_idade = build_series(df, idade_map_filtrado)
+    df_idade = preparar_visualizacao(build_series(df, idade_map_filtrado), com_def)
     if not df_idade.empty:
-        fig = px.bar(
+        exibir_grafico_barras(
             df_idade,
-            x='Categoria',
-            y='Quantidade',
-            title='Quantidade de pessoas com deficiência por idade'
+            x_col='Categoria',
+            modo=modo_visualizacao,
+            titulo='Pessoas com deficiência por idade',
+            y_label='Valor'
         )
-        st.plotly_chart(fig, use_container_width=True)
+        if modo_visualizacao == 'Número de pessoas':
+            st.dataframe(df_idade[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
+        elif modo_visualizacao == 'Percentual (%)':
+            st.dataframe(df_idade[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
+        else:
+            st.dataframe(df_idade, use_container_width=True, hide_index=True)
     else:
         st.info("Sem dados de idade para os filtros selecionados.")
 
@@ -238,42 +299,59 @@ with tab2:
 
     with c1:
         st.markdown("#### Cor/raça (pessoas com deficiência)")
-        df_cor_pcd = build_series(df, {
+        df_cor_pcd = preparar_visualizacao(build_series(df, {
             'Branca': 'PCD_COR_BRANCA',
             'Preta': 'PCD_COR_PRETA',
             'Amarela': 'PCD_COR_AMARELA',
             'Parda': 'PCD_COR_PARDA',
             'Indígena': 'PCD_COR_INDIGENA'
-        })
+        }), com_def)
         if not df_cor_pcd.empty:
-            fig = px.bar(df_cor_pcd, x='Categoria', y='Quantidade', title='PCD por cor/raça')
-            st.plotly_chart(fig, use_container_width=True)
+            exibir_grafico_barras(df_cor_pcd, 'Categoria', modo_visualizacao, 'PCD por cor/raça')
+            if modo_visualizacao == 'Número de pessoas':
+                st.dataframe(df_cor_pcd[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
+            elif modo_visualizacao == 'Percentual (%)':
+                st.dataframe(df_cor_pcd[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
+            else:
+                st.dataframe(df_cor_pcd, use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de cor/raça para deficiência.")
 
     with c2:
         st.markdown("#### Quantidade de dificuldades funcionais")
-        df_qtd_dif = build_series(df, {
+        df_qtd_dif = preparar_visualizacao(build_series(df, {
             '1 dificuldade': 'PCD_QTD_1_DIFICULDADE',
             '2 ou mais dificuldades': 'PCD_QTD_2_MAIS_DIFICULDADES'
-        })
+        }), com_def)
         if not df_qtd_dif.empty:
-            fig = px.pie(df_qtd_dif, names='Categoria', values='Quantidade', title='1 dificuldade vs 2+')
+            valor_pizza = 'Percentual' if modo_visualizacao == 'Percentual (%)' else 'Quantidade'
+            fig = px.pie(df_qtd_dif, names='Categoria', values=valor_pizza, title='1 dificuldade vs 2+')
             st.plotly_chart(fig, use_container_width=True)
+            if modo_visualizacao == 'Número de pessoas':
+                st.dataframe(df_qtd_dif[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
+            elif modo_visualizacao == 'Percentual (%)':
+                st.dataframe(df_qtd_dif[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
+            else:
+                st.dataframe(df_qtd_dif, use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de quantidade de dificuldades.")
 
     st.markdown("#### Tipos de dificuldades funcionais")
-    df_tipos_dif = build_series(df, {
+    df_tipos_dif = preparar_visualizacao(build_series(df, {
         'Enxergar': 'PCD_DIFICULDADE_ENXERGAR',
         'Ouvir': 'PCD_DIFICULDADE_OUVIR',
         'Andar/Subir degraus': 'PCD_DIFICULDADE_ANDAR',
         'Pegar objetos': 'PCD_DIFICULDADE_PEGAR_OBJETOS',
         'Funções mentais/comunicação': 'PCD_DIFICULDADE_MENTAL'
-    })
+    }), com_def)
     if not df_tipos_dif.empty:
-        fig = px.bar(df_tipos_dif, x='Categoria', y='Quantidade', title='Tipos de dificuldades e quantidade')
-        st.plotly_chart(fig, use_container_width=True)
+        exibir_grafico_barras(df_tipos_dif, 'Categoria', modo_visualizacao, 'Tipos de dificuldades e quantidade')
+        if modo_visualizacao == 'Número de pessoas':
+            st.dataframe(df_tipos_dif[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
+        elif modo_visualizacao == 'Percentual (%)':
+            st.dataframe(df_tipos_dif[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
+        else:
+            st.dataframe(df_tipos_dif, use_container_width=True, hide_index=True)
     else:
         st.info("Sem dados de tipos de dificuldades.")
 
@@ -305,15 +383,20 @@ with tab3:
 
     with c2:
         st.markdown("#### Nível de instrução das pessoas com deficiência")
-        df_instr = build_series(df, {
+        df_instr = preparar_visualizacao(build_series(df, {
             'Sem instrução e fund. incompleto': 'PCD_INSTRUCAO_SEM_INSTR_FUND_INCOMP',
             'Fund. completo e médio incompleto': 'PCD_INSTRUCAO_FUND_COMP_MEDIO_INCOMP',
             'Médio completo e sup. incompleto': 'PCD_INSTRUCAO_MEDIO_COMP_SUP_INCOMP',
             'Superior completo': 'PCD_INSTRUCAO_SUPERIOR_COMP'
-        })
+        }), com_def)
         if not df_instr.empty:
-            fig = px.bar(df_instr, x='Categoria', y='Quantidade', title='Nível de instrução - pessoas com deficiência')
-            st.plotly_chart(fig, use_container_width=True)
+            exibir_grafico_barras(df_instr, 'Categoria', modo_visualizacao, 'Nível de instrução - pessoas com deficiência')
+            if modo_visualizacao == 'Número de pessoas':
+                st.dataframe(df_instr[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
+            elif modo_visualizacao == 'Percentual (%)':
+                st.dataframe(df_instr[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
+            else:
+                st.dataframe(df_instr, use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de instrução para pessoas com deficiência.")
 
@@ -334,16 +417,21 @@ with tab4:
 
     with c2:
         st.markdown("#### Pessoas com autismo por cor/raça")
-        df_aut_cor = build_series(df, {
+        df_aut_cor = preparar_visualizacao(build_series(df, {
             'Branca': 'AUTISMO_COR_BRANCA',
             'Preta': 'AUTISMO_COR_PRETA',
             'Amarela': 'AUTISMO_COR_AMARELA',
             'Parda': 'AUTISMO_COR_PARDA',
             'Indígena': 'AUTISMO_COR_INDIGENA'
-        })
+        }), autismo_diag)
         if not df_aut_cor.empty:
-            fig = px.bar(df_aut_cor, x='Categoria', y='Quantidade', title='Autismo por cor/raça')
-            st.plotly_chart(fig, use_container_width=True)
+            exibir_grafico_barras(df_aut_cor, 'Categoria', modo_visualizacao, 'Autismo por cor/raça')
+            if modo_visualizacao == 'Número de pessoas':
+                st.dataframe(df_aut_cor[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
+            elif modo_visualizacao == 'Percentual (%)':
+                st.dataframe(df_aut_cor[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
+            else:
+                st.dataframe(df_aut_cor, use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de autismo por cor/raça.")
 
@@ -357,22 +445,43 @@ with tab4:
         })
         df_sexo = df_sexo[df_sexo['Valor'] > 0]
         if not df_sexo.empty:
-            fig = px.bar(df_sexo, x='Sexo', y='Valor', title='Comparativo homens x mulheres')
+            if autismo_diag > 0:
+                df_sexo['Percentual'] = (df_sexo['Valor'] / autismo_diag) * 100
+            else:
+                df_sexo['Percentual'] = 0.0
+
+            if modo_visualizacao == 'Percentual (%)':
+                fig = px.bar(df_sexo, x='Sexo', y='Percentual', text='Percentual', title='Comparativo homens x mulheres')
+                fig.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
+            else:
+                fig = px.bar(df_sexo, x='Sexo', y='Valor', text='Valor', title='Comparativo homens x mulheres')
+                fig.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
             st.plotly_chart(fig, use_container_width=True)
+            if modo_visualizacao == 'Número de pessoas':
+                st.dataframe(df_sexo[['Sexo', 'Valor']], use_container_width=True, hide_index=True)
+            elif modo_visualizacao == 'Percentual (%)':
+                st.dataframe(df_sexo[['Sexo', 'Percentual']], use_container_width=True, hide_index=True)
+            else:
+                st.dataframe(df_sexo[['Sexo', 'Valor', 'Percentual']], use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de homens x mulheres para autismo.")
 
     with c4:
         st.markdown("#### Pessoas 25+ com autismo por nível de instrução")
-        df_aut_25 = build_series(df, {
+        df_aut_25 = preparar_visualizacao(build_series(df, {
             'Sem instrução e fund. incompleto': 'AUTISMO_25_MAIS_SEM_INSTR_FUND_INCOMP',
             'Fund. completo e médio incompleto': 'AUTISMO_25_MAIS_FUND_COMP_MEDIO_INCOMP',
             'Médio completo e sup. incompleto': 'AUTISMO_25_MAIS_MEDIO_COMP_SUP_INCOMP',
             'Superior completo': 'AUTISMO_25_MAIS_SUPERIOR_COMP'
-        })
+        }), autismo_diag)
         if not df_aut_25.empty:
-            fig = px.bar(df_aut_25, x='Categoria', y='Quantidade', title='Autismo (25+) por instrução')
-            st.plotly_chart(fig, use_container_width=True)
+            exibir_grafico_barras(df_aut_25, 'Categoria', modo_visualizacao, 'Autismo (25+) por instrução')
+            if modo_visualizacao == 'Número de pessoas':
+                st.dataframe(df_aut_25[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
+            elif modo_visualizacao == 'Percentual (%)':
+                st.dataframe(df_aut_25[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
+            else:
+                st.dataframe(df_aut_25, use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de autismo (25+) por instrução.")
 
@@ -391,6 +500,13 @@ with tab4:
         title=f'Percentual de domicílios com morador autista: {perc_dom_autismo:.2f}%'
     )
     st.plotly_chart(fig, use_container_width=True)
+    dom_df['Percentual'] = [100.0 if dom_total > 0 else 0.0, perc_dom_autismo]
+    if modo_visualizacao == 'Número de pessoas':
+        st.dataframe(dom_df[['Indicador', 'Quantidade']], use_container_width=True, hide_index=True)
+    elif modo_visualizacao == 'Percentual (%)':
+        st.dataframe(dom_df[['Indicador', 'Percentual']], use_container_width=True, hide_index=True)
+    else:
+        st.dataframe(dom_df, use_container_width=True, hide_index=True)
 
 
 # ============================================================================
