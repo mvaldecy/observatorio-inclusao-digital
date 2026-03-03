@@ -36,6 +36,30 @@ DATA_SOURCES = {
              }
          }
      },
+    'inep': {
+        'name': 'INEP - Instituto Nacional de Estudos e Pesquisas Educacionais',
+        'description': 'Censo Escolar da Educação Básica',
+        'website': 'https://www.inep.gov.br/portais/inep/pt-br/home/',
+        'urls': {
+            2024:{
+                'educacao-basica': "https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/inep-2024/microdados_ed_basica_2024.csv"
+            },
+            2023:{
+                'educacao-basica': 'https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/inep-2023/microdados_ed_basica_2023.csv'
+            },
+            2022:{
+                'educacao-basica': 'https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/inep-2022/microdados_ed_basica_2022.csv'
+            }
+        }
+    }
+    # 'ibge': {
+    #     'name': 'IBGE - Instituto Brasileiro de Geografia e Estatística',
+    #     'description': 'Dados demográficos e socioeconômicos',
+    #     'website': 'https://www.ibge.gov.br',
+    #     'urls': {
+    #         2024: {...}
+    #     }
+    # }
     'ibge': {
         'name': 'IBGE - Instituto Brasileiro de Geografia e Estatística',
         'description': 'Dados demográficos e socioeconômicos do Brasil',

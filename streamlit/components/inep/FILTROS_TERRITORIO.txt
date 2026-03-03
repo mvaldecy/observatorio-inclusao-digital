@@ -1,0 +1,236 @@
+================================================================================
+FILTROS DE TERRITÓRIO INDÍGENA E QUILOMBOLA - ADICIONADOS
+================================================================================
+
+✅ IMPLEMENTAÇÃO CONCLUÍDA
+
+Variável utilizada: TP_LOCALIZACAO_DIFERENCIADA
+
+================================================================================
+VALORES DISPONÍVEIS
+================================================================================
+
+Código | Descrição
+-------|----------------------------------------------------------
+0      | Não está em área de localização diferenciada
+1      | Área de assentamento
+2      | Terra indígena ⭐
+3      | Comunidade quilombola (área remanescente de quilombos) ⭐
+4      | Área de exclusão e vulnerabilidade social
+5      | Área de itinerantes
+8      | Povos e comunidades tradicionais
+
+================================================================================
+ONDE FOI ADICIONADO
+================================================================================
+
+Arquivo: /streamlit/components/inep/filtro_inep.py
+Método: render_filtros_caracterizacao()
+
+Localização no sidebar: Seção "🏫 Caracterização"
+
+Ordem dos filtros:
+  1. Dependência Administrativa
+  2. Localização (Urbana/Rural)
+  3. Território ⭐ NOVO
+     - Terra indígena
+     - Comunidade quilombola
+     - Assentamento
+     - Etc.
+
+================================================================================
+COMO USAR
+================================================================================
+
+Na interface Streamlit:
+
+1. Acesse a página "INEP - Censo Escolar"
+2. No sidebar, vá até "Caracterização"
+3. No dropdown "Território", selecione:
+   - "Terra indígena" (código 2)
+   - "Comunidade quilombola" (código 3)
+   - Ou qualquer outra opção
+
+Isso filtrará automaticamente as escolas localizadas nesses territórios.
+
+================================================================================
+EXEMPLOS DE ANÁLISE
+================================================================================
+
+EXEMPLO 1: Internet em Terras Indígenas
+  Filtro: Território = "Terra indígena"
+  Indicador: "Acesso à Internet"
+  Resultado: % de escolas indígenas com internet
+
+EXEMPLO 2: Infraestrutura em Quilombos
+  Filtro: Território = "Comunidade quilombola"
+  Indicador: "Comparativo Infraestrutura TI"
+  Resultado: Internet, Lab, Banda Larga em quilombos
+
+EXEMPLO 3: Comparativo Geográfico em Territórios Tradicionais
+  Filtro: Território = "Terra indígena"
+  Indicador: "Laboratório de Informática"
+  Comparativo: ✅ Brasil/Nordeste/Piauí
+  Resultado: % de escolas indígenas com lab por região
+
+EXEMPLO 4: Escolas Rurais em Assentamentos
+  Filtros:
+    - Localização = "Rural"
+    - Território = "Área de assentamento"
+  Indicador: "Banda Larga"
+  Resultado: Conectividade em assentamentos rurais
+
+EXEMPLO 5: Por Dependência em Quilombos
+  Filtro: Território = "Comunidade quilombola"
+  Indicador: "Acesso à Internet"
+  Agregador: "Por Dependência Administrativa"
+  Resultado: Internet em quilombos por tipo de escola
+
+================================================================================
+INTEGRAÇÃO COM OUTROS FILTROS
+================================================================================
+
+O filtro de Território pode ser combinado com:
+
+✅ Filtros Geográficos:
+  - Região
+  - UF (Estado)
+
+✅ Filtros de Caracterização:
+  - Dependência Administrativa
+  - Localização (Urbana/Rural)
+
+✅ Filtros de Infraestrutura:
+  - Internet
+  - Laboratório
+  - Banda Larga
+
+✅ Filtros de Situação:
+  - Situação de funcionamento
+
+================================================================================
+METADADOS ATUALIZADO
+================================================================================
+
+Arquivo: /inep/metadados_inep.py
+
+Categoria: 'caracterizacao'
+Variável: 'TP_LOCALIZACAO_DIFERENCIADA'
+
+Já estava presente nos metadados com todos os valores corretos!
+
+================================================================================
+RESUMO DE FILTROS DISPONÍVEIS
+================================================================================
+
+FILTROS GEOGRÁFICOS (🗺️):
+  ✓ Região (Norte, Nordeste, Sudeste, Sul, Centro-Oeste)
+  ✓ UF/Estado (27 estados)
+
+FILTROS DE CARACTERIZAÇÃO (🏫):
+  ✓ Dependência Administrativa (Federal, Estadual, Municipal, Privada)
+  ✓ Localização (Urbana, Rural)
+  ✓ Território (Indígena, Quilombola, Assentamento, etc) ⭐ NOVO
+
+FILTROS DE INFRAESTRUTURA (🌐):
+  ✓ Apenas com Internet
+  ✓ Apenas com Lab. de Informática
+  ✓ Apenas com Banda Larga
+
+FILTROS DE SITUAÇÃO (📊):
+  ✓ Situação de Funcionamento
+
+Total: 10 filtros disponíveis
+
+================================================================================
+ESTATÍSTICAS ESPERADAS
+================================================================================
+
+Escolas em Terras Indígenas (estimativa):
+  ~ 3.000 escolas em todo o Brasil
+  ~ Principalmente na região Norte
+  ~ Maioria municipal
+
+Escolas em Quilombos (estimativa):
+  ~ 2.500 escolas em todo o Brasil
+  ~ Principalmente na região Nordeste
+  ~ Maioria municipal
+
+Desafio de conectividade:
+  - Menor índice de acesso à internet
+  - Infraestrutura precária
+  - Importância estratégica para inclusão digital
+
+================================================================================
+IMPACTO NA ANÁLISE
+================================================================================
+
+Com este filtro, agora é possível:
+
+✅ Identificar gaps de conectividade em territórios tradicionais
+✅ Comparar infraestrutura entre diferentes territórios
+✅ Analisar políticas públicas específicas
+✅ Monitorar evolução temporal da inclusão digital
+✅ Planejar investimentos em infraestrutura
+✅ Avaliar equidade no acesso à tecnologia
+
+================================================================================
+CÓDIGO IMPLEMENTADO
+================================================================================
+
+```python
+# Em filtro_inep.py, método render_filtros_caracterizacao():
+
+# Localização Diferenciada (Território)
+loc_dif = get_valores('TP_LOCALIZACAO_DIFERENCIADA')
+territorio = st.sidebar.selectbox(
+    "Território",
+    options=[None] + list(loc_dif.keys()),
+    format_func=lambda x: "Todos" if x is None else loc_dif[x],
+    help="Localização diferenciada (indígena, quilombola, etc)"
+)
+
+if territorio:
+    self.filtros_aplicados['TP_LOCALIZACAO_DIFERENCIADA'] = int(territorio)
+```
+
+================================================================================
+VISUALIZAÇÃO NO SIDEBAR
+================================================================================
+
+🏫 Caracterização
+  ├─ Dependência Administrativa [multiselect]
+  ├─ Localização [dropdown]
+  └─ Território [dropdown] ⭐ NOVO
+       ├─ Todos
+       ├─ Não está em área diferenciada
+       ├─ Área de assentamento
+       ├─ Terra indígena ⭐
+       ├─ Comunidade quilombola ⭐
+       ├─ Área de exclusão/vulnerabilidade
+       ├─ Área de itinerantes
+       └─ Povos e comunidades tradicionais
+
+================================================================================
+TESTES SUGERIDOS
+================================================================================
+
+1. Selecionar "Terra indígena" e analisar "Acesso à Internet"
+2. Selecionar "Comunidade quilombola" e usar comparativo geográfico
+3. Combinar com outros filtros (ex: UF=Piauí + Território=Terra indígena)
+4. Analisar por agregador (ex: por Dependência em Quilombos)
+5. Comparar diferentes territórios usando análise múltipla
+
+================================================================================
+✅ FILTROS DE TERRITÓRIO IMPLEMENTADOS COM SUCESSO
+================================================================================
+
+O sistema agora permite análises específicas para:
+  • Terras Indígenas
+  • Comunidades Quilombolas
+  • Áreas de Assentamento
+  • Povos e Comunidades Tradicionais
+  • Áreas de Vulnerabilidade Social
+
+Essencial para políticas de inclusão digital em territórios tradicionais!
+

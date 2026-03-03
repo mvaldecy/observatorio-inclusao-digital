@@ -788,6 +788,127 @@ class HTTPDataLoader:
                     pass
 
     # =============================================================================
+    # MÉTODOS ESPECÍFICOS DO INEP
+    # =============================================================================
+
+    def _download_and_convert_csv_to_parquet(self, url: str, ano: any, tipo: str = 'educacao-basica') -> bool:
+        """
+        Baixa um arquivo CSV do INEP e converte para Parquet
+        Guarda o arquivo na pasta cache/inep/{ano}/
+
+        Args:
+            url: URL do arquivo CSV
+            ano: Ano dos dados
+            tipo: Tipo dos dados (default: 'educacao-basica')
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        # Cria diretório de destino para o ano
+        destino_dir = self.cache_dir / self.fonte / str(ano)
+        destino_dir.mkdir(parents=True, exist_ok=True)
+
+        # Cria diretório temporário para download
+        temp_dir = self.cache_dir / self.fonte / 'temp'
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_csv = temp_dir / f'{tipo}.csv'
+
+        try:
+            if not self._download_file(url, temp_csv):
+                return False
+
+            # Lê o arquivo CSV com tratamento de encoding
+            try:
+                df = pd.read_csv(temp_csv, sep=';', encoding='utf-8-sig',
+                               low_memory=False, na_values=['', ' ', '  '],
+                               keep_default_na=True, decimal=',')
+            except Exception:
+                # Tenta com encoding latin-1 se UTF-8 falhar
+                df = pd.read_csv(temp_csv, sep=';', encoding='latin-1',
+                               low_memory=False, na_values=['', ' ', '  '],
+                               keep_default_na=True, decimal=',')
+
+            if df is None or df.empty:
+                st.error(f"❌ Arquivo CSV está vazio")
+                return False
+
+            # Limpa e otimiza o DataFrame
+            df = self._limpar_colunas(df)
+            df = self._preparar_dataframe(df, aplicar_categorizacao=True)
+
+            # Salva como parquet
+            destino_parquet = destino_dir / f'{tipo}.parquet'
+            df.to_parquet(destino_parquet, compression='snappy', engine='pyarrow')
+
+            return True
+
+        except Exception as e:
+            st.error(f"❌ Erro ao baixar/converter CSV do INEP: {str(e)}")
+            import traceback
+            st.error(f"Detalhes: {traceback.format_exc()}")
+            return False
+        finally:
+            # Limpa o diretório temporário
+            if temp_dir.exists():
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                except:
+                    pass
+
+    def _carregar_inep(self, ano: any, tipo: str, force_download: bool = False) -> Optional[Tuple[pd.DataFrame, any]]:
+        """
+        Carrega dados do INEP (Censo Escolar)
+        Baixa arquivos CSV e converte para Parquet
+
+        Args:
+            ano: Ano dos dados (2022, 2023, 2024)
+            tipo: Tipo dos dados (ex: 'educacao-basica')
+            force_download: Forçar download mesmo se existir cache
+
+        Returns:
+            Tupla (DataFrame, None) ou None se erro
+        """
+        # Estrutura: cache/inep/{ano}/{tipo}.parquet
+        ano_dir = self.cache_dir / self.fonte / str(ano)
+        ano_dir.mkdir(parents=True, exist_ok=True)
+        parquet_path = ano_dir / f"{tipo}.parquet"
+
+        # Se existe cache e não forçou download, carrega direto
+        if parquet_path.exists() and not force_download:
+            try:
+                df = pd.read_parquet(str(parquet_path))
+                return df, None
+            except Exception as e:
+                st.error(f"❌ Erro ao carregar parquet: {str(e)}")
+                return None, None
+
+        # Busca URL
+        url = None
+        if ano in self.urls and tipo in self.urls[ano]:
+            url = self.urls[ano][tipo]
+
+        if not url:
+            st.error(f"❌ URL não encontrada para {tipo} (ano {ano})")
+            return None, None
+
+        # Baixa e converte CSV para Parquet
+        if not self._download_and_convert_csv_to_parquet(url, ano, tipo):
+            return None, None
+
+        # Carrega o parquet gerado
+        if parquet_path.exists():
+            try:
+                df = pd.read_parquet(str(parquet_path))
+                return df, None
+            except Exception as e:
+                st.error(f"❌ Erro ao carregar parquet: {str(e)}")
+                return None, None
+        else:
+            st.error(f"❌ Falha ao criar parquet para {tipo}")
+            return None, None
+
+    # =============================================================================
     # MÉTODOS PÚBLICOS
     # =============================================================================
 

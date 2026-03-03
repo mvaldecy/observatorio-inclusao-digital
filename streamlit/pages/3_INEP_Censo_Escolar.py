@@ -1,0 +1,579 @@
+"""
+Página do INEP - Censo Escolar da Educação Básica
+Permite ao usuário montar sua própria visualização escolhendo filtros,
+agregadores, indicadores e tipo de gráfico.
+"""
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import sys
+import os
+
+# Adiciona a raiz do projeto e o diretório streamlit ao sys.path
+root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+streamlit_path = os.path.join(root_path, 'streamlit')
+for p in [root_path, streamlit_path]:
+    if p not in sys.path:
+        sys.path.append(p)
+
+from utils.data_loader import get_analisador_inep, get_anos_disponiveis_inep
+from utils.http_loader import HTTPDataLoader
+from components.inep import CATEGORIAS_INEP, AGREGADORES_INEP, FiltroINEP, ComparativoGeograficoINEP
+from components.header import render_header
+from inep import get_label, get_valores, METADADOS_INEP
+
+st.set_page_config(page_title="INEP - Censo Escolar", layout="wide", page_icon="🏫")
+
+# ============================================================================
+# SIDEBAR - CONFIGURAÇÕES
+# ============================================================================
+
+st.sidebar.title("⚙️ Configurações")
+
+# Seletor de ano
+anos_disponiveis = get_anos_disponiveis_inep()
+
+ano_selecionado = st.sidebar.selectbox(
+    "📅 Ano do Censo",
+    options=anos_disponiveis,
+    index=0,
+    help="Selecione o ano do Censo Escolar"
+)
+
+# Botões de gerenciamento de cache
+col_btn1, col_btn2 = st.sidebar.columns(2)
+
+loader = HTTPDataLoader(fonte='inep')
+
+with col_btn1:
+    if st.button("🔄 Atualizar", help="Baixar nova versão dos dados", use_container_width=True):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        loader.carregar_dados(ano_selecionado, 'educacao-basica', force_download=True)
+        st.rerun()
+
+with col_btn2:
+    if st.button("🗑️ Limpar Cache", help="Remover dados em cache", use_container_width=True):
+        loader.limpar_cache(ano_selecionado)
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
+
+# Info sobre cache
+with st.sidebar.expander("💾 Informações do Cache", expanded=False):
+    cache_info = loader.info_cache()
+
+    if cache_info:
+        for ano, arquivos in cache_info.items():
+            st.markdown(f"**{ano}:**")
+            for tipo, info in arquivos.items():
+                icone = "✅" if info['existe'] else "❌"
+                st.markdown(f"  {icone} **{tipo}**: {info['tamanho_mb']} MB")
+    else:
+        st.info("📂 Nenhum arquivo em cache")
+
+st.sidebar.markdown("---")
+
+# ============================================================================
+# CARREGAR DADOS
+# ============================================================================
+
+try:
+    analisador = get_analisador_inep(ano=ano_selecionado)
+except Exception as e:
+    st.error(f"❌ Erro ao carregar dados de {ano_selecionado}: {str(e)}")
+    st.info("💡 **Dica:** Verifique sua conexão com a internet ou tente limpar o cache.")
+    st.stop()
+
+# ============================================================================
+# FILTROS
+# ============================================================================
+
+filtro_helper = FiltroINEP(analisador)
+filtros_ativos = filtro_helper.render_todos_filtros()
+
+# ============================================================================
+# HEADER
+# ============================================================================
+
+render_header(f"INEP - Censo Escolar {ano_selecionado}", "🏫")
+
+# Mostrar resumo dos filtros
+if filtros_ativos:
+    filtro_helper.mostrar_resumo_filtros()
+
+# ============================================================================
+# RESUMO ESTATÍSTICO RÁPIDO
+# ============================================================================
+
+col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+
+total_escolas = len(analisador.df)
+
+with col_stat1:
+    st.metric("🏫 Total de Escolas", f"{total_escolas:,}")
+
+with col_stat2:
+    if 'QT_MAT_BAS' in analisador.df.columns:
+        mat_total = analisador.df['QT_MAT_BAS'].sum()
+        st.metric("👨‍🎓 Total de Matrículas", f"{int(mat_total):,}")
+    else:
+        st.metric("👨‍🎓 Total de Matrículas", "N/D")
+
+with col_stat3:
+    if 'QT_DOC_BAS' in analisador.df.columns:
+        doc_total = analisador.df['QT_DOC_BAS'].sum()
+        st.metric("👨‍🏫 Total de Docentes", f"{int(doc_total):,}")
+    else:
+        st.metric("👨‍🏫 Total de Docentes", "N/D")
+
+with col_stat4:
+    if 'IN_INTERNET' in analisador.df.columns:
+        com_internet = (analisador.df['IN_INTERNET'] == 1).sum()
+        perc_internet = (com_internet / total_escolas * 100) if total_escolas > 0 else 0
+        st.metric("🌐 Com Internet", f"{perc_internet:.1f}%")
+    else:
+        st.metric("🌐 Com Internet", "N/D")
+
+st.markdown("---")
+
+# ============================================================================
+# MONTE SUA VISUALIZAÇÃO
+# ============================================================================
+
+st.markdown("### 🛠️ Monte sua Visualização")
+st.markdown("Escolha o indicador, o agregador, o tipo de gráfico e a função de agregação.")
+
+# --- Helpers para construir listas dinâmicas de indicadores ---
+
+def _construir_opcoes_indicadores():
+    """Retorna dict {label_amigável: código_coluna} para todos os indicadores disponíveis no DataFrame."""
+    opcoes = {}
+    for cat_nome, variaveis in METADADOS_INEP.items():
+        for var_cod, var_info in variaveis.items():
+            if var_cod in analisador.df.columns:
+                label = f"{var_info['label']}  ({var_cod})"
+                opcoes[label] = var_cod
+    return opcoes
+
+def _is_quantitativo(coluna):
+    """Retorna True se a coluna for quantitativa (sem mapeamento de valores)."""
+    valores = get_valores(coluna)
+    return valores is None
+
+opcoes_indicadores = _construir_opcoes_indicadores()
+
+# ---- Modo de seleção: por categoria ou busca livre ----
+
+modo_selecao = st.radio(
+    "Modo de seleção do indicador",
+    ["Por categoria (pré-definido)", "Busca livre (todos os indicadores)"],
+    horizontal=True,
+    key="modo_selecao_indicador"
+)
+
+if modo_selecao == "Por categoria (pré-definido)":
+    col_cat, col_ind = st.columns([1, 2])
+
+    with col_cat:
+        selected_category = st.selectbox(
+            "📁 Categoria",
+            options=list(CATEGORIAS_INEP.keys()),
+            help="Selecione uma categoria de indicadores"
+        )
+
+    INDICADORES_CATEGORIA = {}
+    for k, v in CATEGORIAS_INEP[selected_category].items():
+        INDICADORES_CATEGORIA[k] = v
+
+    with col_ind:
+        selected_indicador_key = st.selectbox(
+            "📊 Indicador",
+            options=list(INDICADORES_CATEGORIA.keys()),
+            help="Selecione o indicador específico"
+        )
+
+    actual_indicador = INDICADORES_CATEGORIA[selected_indicador_key]
+    is_multiple = isinstance(actual_indicador, list)
+
+else:
+    # Busca livre com multiselect
+    labels_disponiveis = sorted(opcoes_indicadores.keys())
+    selecionados = st.multiselect(
+        "📊 Selecione um ou mais indicadores",
+        options=labels_disponiveis,
+        default=[labels_disponiveis[0]] if labels_disponiveis else [],
+        help="Busque pelo nome ou código do indicador. Selecione múltiplos para análise comparativa."
+    )
+
+    if not selecionados:
+        st.warning("⚠️ Selecione pelo menos um indicador.")
+        st.stop()
+
+    codigos_selecionados = [opcoes_indicadores[s] for s in selecionados]
+    if len(codigos_selecionados) == 1:
+        actual_indicador = codigos_selecionados[0]
+        is_multiple = False
+    else:
+        actual_indicador = codigos_selecionados
+        is_multiple = True
+
+    selected_indicador_key = ", ".join(selecionados) if is_multiple else selecionados[0]
+
+# ---- Label amigável ----
+if is_multiple:
+    label_indicador = f"📊 {selected_indicador_key}"
+else:
+    label_indicador = get_label(actual_indicador)
+
+# ---- Escolha do agregador ----
+
+col_agg, col_chart, col_func = st.columns([1, 1, 1])
+
+with col_agg:
+    usar_agregador = st.checkbox("Agrupar por um campo", value=True, help="Analisa o indicador agrupado por outra variável")
+    if usar_agregador:
+        agregador_selecionado = st.selectbox(
+            "🔀 Agregador",
+            options=list(AGREGADORES_INEP.keys()),
+            help="Campo para agrupar a análise"
+        )
+        campo_agregador = AGREGADORES_INEP[agregador_selecionado]
+    else:
+        agregador_selecionado = None
+        campo_agregador = None
+
+# ---- Escolha do tipo de gráfico ----
+
+TIPOS_GRAFICO = {
+    "Barras": "bar",
+    "Barras Horizontais": "barh",
+    "Pizza / Rosca": "pie",
+    "Linha": "line",
+    "Treemap": "treemap",
+}
+
+with col_chart:
+    tipo_grafico_label = st.selectbox(
+        "📈 Tipo de Gráfico",
+        options=list(TIPOS_GRAFICO.keys()),
+        help="Escolha como visualizar os resultados"
+    )
+    tipo_grafico = TIPOS_GRAFICO[tipo_grafico_label]
+
+# ---- Função de agregação (para indicadores quantitativos) ----
+
+# Detectar se o indicador (ou todos, se múltiplo) é quantitativo
+indicadores_para_checar = actual_indicador if is_multiple else [actual_indicador]
+todos_quantitativos = all(_is_quantitativo(c) for c in indicadores_para_checar)
+
+FUNCOES_AGREGACAO = {
+    "Soma": "sum",
+    "Média": "mean",
+    "Mediana": "median",
+    "Contagem": "count",
+}
+
+with col_func:
+    if todos_quantitativos:
+        funcao_label = st.selectbox(
+            "🔢 Função de Agregação",
+            options=list(FUNCOES_AGREGACAO.keys()),
+            help="Função a aplicar nos valores numéricos (soma, média, etc.)"
+        )
+        funcao_agg = FUNCOES_AGREGACAO[funcao_label]
+    else:
+        st.info("Indicador categórico — contagem automática")
+        funcao_agg = None
+        funcao_label = "Contagem"
+
+# ---- Card informativo ----
+
+with st.expander("ℹ️ Sobre a seleção atual", expanded=False):
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(f"**Indicador:** {selected_indicador_key}")
+        st.markdown(f"**Tipo:** {'Quantitativo' if todos_quantitativos else 'Categórico (Sim/Não ou categorias)'}")
+        st.markdown(f"**Agregador:** {agregador_selecionado or 'Nenhum'}")
+    with c2:
+        st.markdown(f"**Gráfico:** {tipo_grafico_label}")
+        st.markdown(f"**Função:** {funcao_label}")
+        if is_multiple:
+            st.markdown("**Indicadores comparados:**")
+            for ind in actual_indicador:
+                st.markdown(f"- `{ind}`: {get_label(ind)}")
+
+# ============================================================================
+# ANÁLISE E VISUALIZAÇÃO
+# ============================================================================
+
+st.markdown("---")
+st.subheader(label_indicador)
+
+# ---- Sem agregador: análise simples ----
+
+if not usar_agregador:
+    resultado = analisador.analisar_indicador(actual_indicador)
+
+    if resultado is not None and not resultado.empty:
+        col_r1, col_r2 = st.columns([1, 1])
+
+        with col_r1:
+            st.markdown("#### 📋 Resultados")
+            st.dataframe(resultado, use_container_width=True, hide_index=True)
+
+        with col_r2:
+            st.markdown("#### 📈 Visualização")
+
+            if 'Percentual' in resultado.columns and 'Categoria' in resultado.columns:
+                resultado = resultado.copy()
+                resultado['Percentual_Num'] = resultado['Percentual'].str.replace('%', '').astype(float)
+
+                if tipo_grafico == 'bar':
+                    fig = px.bar(resultado, x='Categoria', y='Percentual_Num', text='Percentual',
+                                 title=label_indicador, labels={'Percentual_Num': 'Percentual (%)', 'Categoria': ''},
+                                 color='Percentual_Num', color_continuous_scale='Viridis')
+                    fig.update_traces(textposition='outside')
+                elif tipo_grafico == 'barh':
+                    fig = px.bar(resultado, y='Categoria', x='Percentual_Num', text='Percentual',
+                                 title=label_indicador, orientation='h',
+                                 labels={'Percentual_Num': 'Percentual (%)', 'Categoria': ''},
+                                 color='Percentual_Num', color_continuous_scale='Viridis')
+                    fig.update_traces(textposition='outside')
+                elif tipo_grafico == 'pie':
+                    fig = px.pie(resultado, names='Categoria', values='Percentual_Num',
+                                 title=label_indicador)
+                elif tipo_grafico == 'line':
+                    fig = px.line(resultado, x='Categoria', y='Percentual_Num',
+                                  title=label_indicador, markers=True,
+                                  labels={'Percentual_Num': 'Percentual (%)', 'Categoria': ''})
+                elif tipo_grafico == 'treemap':
+                    fig = px.treemap(resultado, path=['Categoria'], values='Percentual_Num',
+                                     title=label_indicador)
+                else:
+                    fig = px.bar(resultado, x='Categoria', y='Percentual_Num', text='Percentual',
+                                 title=label_indicador)
+
+                fig.update_layout(showlegend=False, height=450)
+                st.plotly_chart(fig, use_container_width=True)
+
+            elif 'Total' in resultado.columns and 'Categoria' in resultado.columns:
+                if tipo_grafico in ('bar', 'barh'):
+                    orient = 'h' if tipo_grafico == 'barh' else 'v'
+                    x_col = 'Total' if orient == 'h' else 'Categoria'
+                    y_col = 'Categoria' if orient == 'h' else 'Total'
+                    fig = px.bar(resultado, x=x_col, y=y_col, text='Total', title=label_indicador,
+                                 orientation=orient, color='Total', color_continuous_scale='Blues')
+                    fig.update_traces(textposition='outside')
+                elif tipo_grafico == 'pie':
+                    fig = px.pie(resultado, names='Categoria', values='Total', title=label_indicador)
+                elif tipo_grafico == 'line':
+                    fig = px.line(resultado, x='Categoria', y='Total', title=label_indicador, markers=True)
+                elif tipo_grafico == 'treemap':
+                    fig = px.treemap(resultado, path=['Categoria'], values='Total', title=label_indicador)
+                else:
+                    fig = px.bar(resultado, x='Categoria', y='Total', text='Total', title=label_indicador)
+                fig.update_layout(showlegend=False, height=450)
+                st.plotly_chart(fig, use_container_width=True)
+
+        # Download
+        csv = resultado.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Baixar Resultados (CSV)", data=csv,
+                           file_name=f"inep_{ano_selecionado}_{label_indicador}.csv", mime="text/csv")
+    else:
+        st.warning("⚠️ Nenhum dado encontrado para os filtros aplicados.")
+
+# ---- Com agregador ----
+
+else:
+    # Escolher método adequado
+    if todos_quantitativos and funcao_agg:
+        resultado_agg = analisador.analisar_por_agregador_quantitativo(
+            actual_indicador, campo_agregador, funcao=funcao_agg
+        )
+    else:
+        resultado_agg = analisador.analisar_por_agregador(actual_indicador, campo_agregador)
+
+    if resultado_agg is not None and not resultado_agg.empty:
+        st.markdown(f"#### 📊 Resultados por {agregador_selecionado}")
+
+        # Adicionar Percentual_Num se houver coluna Percentual (para uso em gráficos)
+        if 'Percentual' in resultado_agg.columns:
+            resultado_agg = resultado_agg.copy()
+            resultado_agg['Percentual_Num'] = resultado_agg['Percentual'].str.replace('%', '').astype(float)
+
+        # Remover colunas indesejadas antes de exibir
+        colunas_remover = ['Percentual_Num', 'Agregador_Valor', 'Total_Grupo', 'Valor']
+        # Para análises categóricas, também remover Total
+        if 'Percentual' in resultado_agg.columns:
+            colunas_remover.append('Total')
+
+        colunas_exibir = [c for c in resultado_agg.columns if c not in colunas_remover]
+        st.dataframe(resultado_agg[colunas_exibir], use_container_width=True, hide_index=True)
+
+        st.markdown("#### 📈 Visualização")
+
+        col_grupo = resultado_agg.columns[0]
+
+        # ---- Indicadores quantitativos agrupados ----
+        if todos_quantitativos and funcao_agg and 'Total' in resultado_agg.columns:
+            y_label = f"{funcao_label}"
+
+            if is_multiple:
+                if tipo_grafico == 'bar':
+                    fig = px.bar(resultado_agg, x=col_grupo, y='Total', color='Indicador',
+                                 barmode='group', text='Total',
+                                 title=f"{selected_indicador_key} por {agregador_selecionado} ({funcao_label})",
+                                 labels={'Total': y_label})
+                elif tipo_grafico == 'barh':
+                    fig = px.bar(resultado_agg, y=col_grupo, x='Total', color='Indicador',
+                                 barmode='group', text='Total', orientation='h',
+                                 title=f"{selected_indicador_key} por {agregador_selecionado} ({funcao_label})",
+                                 labels={'Total': y_label})
+                elif tipo_grafico == 'line':
+                    fig = px.line(resultado_agg, x=col_grupo, y='Total', color='Indicador',
+                                  markers=True,
+                                  title=f"{selected_indicador_key} por {agregador_selecionado} ({funcao_label})",
+                                  labels={'Total': y_label})
+                elif tipo_grafico == 'pie':
+                    # Para pizza com múltiplos, fazer sunburst
+                    fig = px.sunburst(resultado_agg, path=[col_grupo, 'Indicador'], values='Total',
+                                      title=f"{selected_indicador_key} por {agregador_selecionado} ({funcao_label})")
+                elif tipo_grafico == 'treemap':
+                    fig = px.treemap(resultado_agg, path=[col_grupo, 'Indicador'], values='Total',
+                                     title=f"{selected_indicador_key} por {agregador_selecionado} ({funcao_label})")
+                else:
+                    fig = px.bar(resultado_agg, x=col_grupo, y='Total', color='Indicador',
+                                 barmode='group', title=selected_indicador_key)
+            else:
+                if tipo_grafico == 'bar':
+                    fig = px.bar(resultado_agg, x=col_grupo, y='Total', text='Total',
+                                 title=f"{label_indicador} por {agregador_selecionado} ({funcao_label})",
+                                 labels={'Total': y_label}, color='Total', color_continuous_scale='Blues')
+                    fig.update_traces(textposition='outside', texttemplate='%{text:,.0f}')
+                elif tipo_grafico == 'barh':
+                    fig = px.bar(resultado_agg, y=col_grupo, x='Total', text='Total',
+                                 title=f"{label_indicador} por {agregador_selecionado} ({funcao_label})",
+                                 orientation='h', labels={'Total': y_label},
+                                 color='Total', color_continuous_scale='Blues')
+                    fig.update_traces(textposition='outside', texttemplate='%{text:,.0f}')
+                elif tipo_grafico == 'pie':
+                    fig = px.pie(resultado_agg, names=col_grupo, values='Total',
+                                 title=f"{label_indicador} por {agregador_selecionado} ({funcao_label})")
+                elif tipo_grafico == 'line':
+                    fig = px.line(resultado_agg, x=col_grupo, y='Total', markers=True,
+                                  title=f"{label_indicador} por {agregador_selecionado} ({funcao_label})",
+                                  labels={'Total': y_label})
+                elif tipo_grafico == 'treemap':
+                    fig = px.treemap(resultado_agg, path=[col_grupo], values='Total',
+                                     title=f"{label_indicador} por {agregador_selecionado} ({funcao_label})")
+                else:
+                    fig = px.bar(resultado_agg, x=col_grupo, y='Total', text='Total',
+                                 title=label_indicador)
+
+        # ---- Indicadores categóricos agrupados ----
+        else:
+            if is_multiple and 'Indicador' in resultado_agg.columns:
+                df_plot = resultado_agg[resultado_agg['Categoria'].str.contains('Sim', na=False)]
+
+                if tipo_grafico == 'bar':
+                    fig = px.bar(df_plot, x=col_grupo, y='Percentual_Num', color='Indicador',
+                                 barmode='group', text='Percentual',
+                                 title=f"{selected_indicador_key} por {agregador_selecionado}",
+                                 labels={'Percentual_Num': 'Percentual (%)'})
+                elif tipo_grafico == 'barh':
+                    fig = px.bar(df_plot, y=col_grupo, x='Percentual_Num', color='Indicador',
+                                 barmode='group', text='Percentual', orientation='h',
+                                 title=f"{selected_indicador_key} por {agregador_selecionado}",
+                                 labels={'Percentual_Num': 'Percentual (%)'})
+                elif tipo_grafico == 'line':
+                    fig = px.line(df_plot, x=col_grupo, y='Percentual_Num', color='Indicador',
+                                  markers=True,
+                                  title=f"{selected_indicador_key} por {agregador_selecionado}",
+                                  labels={'Percentual_Num': 'Percentual (%)'})
+                elif tipo_grafico == 'pie':
+                    fig = px.sunburst(df_plot, path=[col_grupo, 'Indicador'], values='Percentual_Num',
+                                      title=f"{selected_indicador_key} por {agregador_selecionado}")
+                elif tipo_grafico == 'treemap':
+                    fig = px.treemap(df_plot, path=[col_grupo, 'Indicador'], values='Percentual_Num',
+                                     title=f"{selected_indicador_key} por {agregador_selecionado}")
+                else:
+                    fig = px.bar(df_plot, x=col_grupo, y='Percentual_Num', color='Indicador',
+                                 barmode='group', title=selected_indicador_key)
+            else:
+                if tipo_grafico == 'bar':
+                    fig = px.bar(resultado_agg, x=col_grupo, y='Percentual_Num', color='Categoria',
+                                 text='Percentual',
+                                 title=f"{label_indicador} por {agregador_selecionado}",
+                                 labels={'Percentual_Num': 'Percentual (%)'})
+                elif tipo_grafico == 'barh':
+                    fig = px.bar(resultado_agg, y=col_grupo, x='Percentual_Num', color='Categoria',
+                                 text='Percentual', orientation='h',
+                                 title=f"{label_indicador} por {agregador_selecionado}",
+                                 labels={'Percentual_Num': 'Percentual (%)'})
+                elif tipo_grafico == 'line':
+                    fig = px.line(resultado_agg, x=col_grupo, y='Percentual_Num', color='Categoria',
+                                  markers=True,
+                                  title=f"{label_indicador} por {agregador_selecionado}",
+                                  labels={'Percentual_Num': 'Percentual (%)'})
+                elif tipo_grafico == 'pie':
+                    fig = px.sunburst(resultado_agg, path=[col_grupo, 'Categoria'], values='Percentual_Num',
+                                      title=f"{label_indicador} por {agregador_selecionado}")
+                elif tipo_grafico == 'treemap':
+                    fig = px.treemap(resultado_agg, path=[col_grupo, 'Categoria'], values='Percentual_Num',
+                                     title=f"{label_indicador} por {agregador_selecionado}")
+                else:
+                    fig = px.bar(resultado_agg, x=col_grupo, y='Percentual_Num', color='Categoria',
+                                 title=label_indicador)
+
+        fig.update_layout(height=500, xaxis_tickangle=-45)
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Download
+        csv_agg = resultado_agg.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Baixar Resultados (CSV)", data=csv_agg,
+                           file_name=f"inep_{ano_selecionado}_{selected_indicador_key}_{campo_agregador}.csv",
+                           mime="text/csv")
+    else:
+        st.warning("⚠️ Nenhum dado encontrado para os filtros/agregador selecionados.")
+
+# ============================================================================
+# COMPARATIVO GEOGRÁFICO
+# ============================================================================
+
+st.markdown("---")
+st.markdown("### 🗺️ Comparativo Geográfico")
+
+usar_comparativo = st.checkbox(
+    "Comparar Brasil / Nordeste / Piauí",
+    value=False,
+    help="Análise comparativa entre diferentes níveis geográficos"
+)
+
+if usar_comparativo:
+    comparativo = ComparativoGeograficoINEP(analisador)
+
+    filtros_extras = {}
+    if hasattr(filtro_helper, 'filtros_aplicados'):
+        for col, valor in filtro_helper.filtros_aplicados.items():
+            if col not in ['CO_REGIAO', 'CO_UF', 'CO_MUNICIPIO']:
+                filtros_extras[col] = valor
+
+    comparativo.renderizar(
+        indicador=actual_indicador,
+        filtros_extras=filtros_extras if filtros_extras else None,
+        is_multiple=is_multiple
+    )
+
+# ============================================================================
+# FOOTER
+# ============================================================================
+
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: #666;'>
+    <p>Dados: INEP - Instituto Nacional de Estudos e Pesquisas Educacionais Anísio Teixeira</p>
+    <p>Censo Escolar da Educação Básica</p>
+</div>
+""", unsafe_allow_html=True)
+

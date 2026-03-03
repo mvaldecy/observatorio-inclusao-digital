@@ -278,6 +278,84 @@ def carregar_cobertura_movel_4g_uf_anatel(force_download: bool = False):
     return None
 
 
+# =============================================================================
+# FUNÇÕES DE CARREGAMENTO DO INEP
+# =============================================================================
+
+@st.cache_data
+def carregar_dados_inep(ano: int, tipo: str = 'educacao-basica', force_download: bool = False):
+    """
+    Carrega dados do INEP (Censo Escolar) de um ano específico
+
+    Args:
+        ano: Ano dos dados (2022, 2023, 2024)
+        tipo: Tipo de dado ('educacao-basica')
+        force_download: Forçar novo download mesmo se existir cache
+
+    Returns:
+        (DataFrame, None) ou (None, None) se falhar
+    """
+    loader = HTTPDataLoader(fonte='inep')
+    resultado = loader.carregar_dados(ano, tipo, force_download)
+
+    if resultado:
+        return resultado
+    return None, None
+
+
+@st.cache_data
+def carregar_educacao_basica_inep(ano: int, force_download: bool = False):
+    """
+    Carrega dados de educação básica do INEP de um ano específico
+    Equivalente ao carregar_conectividade_escola_anatel
+
+    Args:
+        ano: Ano específico (2022, 2023, 2024)
+        force_download: Forçar novo download mesmo se existir cache
+
+    Returns:
+        DataFrame do ano específico ou None se falhar
+    """
+    df, _ = carregar_dados_inep(ano=ano, tipo='educacao-basica', force_download=force_download)
+    return df
+
+
+def get_anos_disponiveis_inep(tipo: str = 'educacao-basica'):
+    """
+    Retorna lista de anos disponíveis para um tipo de dado do INEP
+
+    Args:
+        tipo: Tipo de dado ('educacao-basica')
+
+    Returns:
+        Lista de anos disponíveis (ex: [2024, 2023, 2022])
+    """
+    loader = HTTPDataLoader(fonte='inep')
+    return loader.get_anos_disponiveis(tipo=tipo)
+
+
+@st.cache_resource
+def get_analisador_inep(ano: int, force_download: bool = False):
+    """
+    Retorna um analisador de dados do INEP para um ano específico
+    Similar ao get_analisador_domicilios para manter interface consistente
+
+    Args:
+        ano: Ano dos dados (2022, 2023, 2024)
+        force_download: Forçar novo download mesmo se existir cache
+
+    Returns:
+        AnalisadorINEP inicializado com os dados do ano
+    """
+    from inep.analisador_inep import AnalisadorINEP
+
+    df = carregar_educacao_basica_inep(ano=ano, force_download=force_download)
+
+    if df is None:
+        st.error(f"❌ Não foi possível carregar dados do INEP para o ano {ano}")
+        return None
+
+    return AnalisadorINEP(df=df, ano=ano)
 # ============================================================================
 # IBGE - Instituto Brasileiro de Geografia e Estatística
 # ============================================================================
