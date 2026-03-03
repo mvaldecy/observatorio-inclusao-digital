@@ -9,6 +9,7 @@ from typing import Optional, Tuple, List, Dict
 import pandas as pd
 import pyreadstat
 import zipfile
+import unicodedata
 from .data_sources import get_fonte_urls, get_fonte_info, list_fontes
 
 
@@ -644,11 +645,176 @@ class HTTPDataLoader:
         
         parquet_path = ano_dir / f"{tipo}.parquet"
 
+        def _normalizar_municipio(valor):
+            if pd.isna(valor):
+                return None
+            texto = str(valor).strip()
+            if not texto or texto == '-':
+                return None
+            texto = texto.replace('(PI)', '').replace('(Pi)', '').replace('(pi)', '')
+            return texto.strip().upper()
+
+        def _to_numeric(serie):
+            if serie is None:
+                return None
+            s = serie.astype(str).str.strip()
+            s = s.replace({'-': None, 'nan': None, 'None': None, '': None})
+            s = s.str.replace('.', '', regex=False)
+            s = s.str.replace(',', '.', regex=False)
+            return pd.to_numeric(s, errors='coerce')
+
+        def _normalizar_texto(valor: str) -> str:
+            txt = str(valor).strip().lower()
+            txt = unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
+            txt = ' '.join(txt.split())
+            return txt
+
+        def _extrair_tabela_por_municipio(sheet_name: str, mapeamento: dict):
+            try:
+                df_sheet = pd.read_excel(temp_xlsx, sheet_name=sheet_name, engine='openpyxl')
+            except Exception:
+                return None
+
+            candidatos_municipio = [
+                'Unnamed: 1',
+                'MUNICÍPIOS',
+                'Município.1',
+                'Município',
+                'Unnamed: 6'
+            ]
+            col_municipio = None
+            melhor_qtd = -1
+            for candidato in candidatos_municipio:
+                if candidato in df_sheet.columns:
+                    qtd = df_sheet[candidato].notna().sum()
+                    if qtd > melhor_qtd:
+                        melhor_qtd = qtd
+                        col_municipio = candidato
+
+            if col_municipio is None:
+                return None
+
+            df_out = pd.DataFrame()
+            df_out['municipio_join'] = df_sheet[col_municipio].apply(_normalizar_municipio)
+
+            colunas_metricas = []
+            colunas_sheet = list(df_sheet.columns)
+            colunas_normalizadas = {_normalizar_texto(c): c for c in colunas_sheet}
+            for origem, destino in mapeamento.items():
+                col_origem = None
+
+                if origem in df_sheet.columns:
+                    col_origem = origem
+                else:
+                    origem_norm = _normalizar_texto(origem)
+                    if origem_norm in colunas_normalizadas:
+                        col_origem = colunas_normalizadas[origem_norm]
+                    else:
+                        for c in colunas_sheet:
+                            if origem_norm in _normalizar_texto(c):
+                                col_origem = c
+                                break
+
+                if col_origem is not None:
+                    df_out[destino] = _to_numeric(df_sheet[col_origem])
+                    colunas_metricas.append(destino)
+
+            if not colunas_metricas:
+                return None
+
+            df_out = df_out.dropna(subset=['municipio_join'])
+            df_out = df_out[df_out[colunas_metricas].notna().any(axis=1)]
+            if df_out.empty:
+                return None
+
+            df_out = df_out.groupby('municipio_join', as_index=False).first()
+            return df_out
+
+        def _extrair_idade_planilha31():
+            try:
+                df_sheet = pd.read_excel(temp_xlsx, sheet_name='Planilha31', engine='openpyxl')
+            except Exception:
+                return None
+
+            if 'Unnamed: 1' not in df_sheet.columns:
+                return None
+
+            colunas_valor = ['Grupo de idade'] + [
+                c for c in df_sheet.columns
+                if str(c).startswith('Unnamed:') and c not in ['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4']
+            ]
+
+            if not colunas_valor:
+                return None
+
+            rotulos = df_sheet.iloc[0][colunas_valor].tolist()
+
+            mapa_idades = {
+                'total': 'pcd_idade_total',
+                '2 a 4 anos': 'pcd_idade_2_4',
+                '5 a 9 anos': 'pcd_idade_5_9',
+                '10 a 14 anos': 'pcd_idade_10_14',
+                '15 a 19 anos': 'pcd_idade_15_19',
+                '20 a 24 anos': 'pcd_idade_20_24',
+                '25 a 29 anos': 'pcd_idade_25_29',
+                '30 a 34 anos': 'pcd_idade_30_34',
+                '35 a 39 anos': 'pcd_idade_35_39',
+                '40 a 44 anos': 'pcd_idade_40_44',
+                '45 a 49 anos': 'pcd_idade_45_49',
+                '50 a 54 anos': 'pcd_idade_50_54',
+                '55 a 59 anos': 'pcd_idade_55_59',
+                '60 a 64 anos': 'pcd_idade_60_64',
+                '65 a 69 anos': 'pcd_idade_65_69',
+                '70 a 74 anos': 'pcd_idade_70_74',
+                '75 a 79 anos': 'pcd_idade_75_79',
+                '80 a 84 anos': 'pcd_idade_80_84',
+                '85 a 89 anos': 'pcd_idade_85_89',
+                '90 a 94 anos': 'pcd_idade_90_94',
+                '95 a 99 anos': 'pcd_idade_95_99',
+                '100 anos ou mais': 'pcd_idade_100_mais'
+            }
+            mapa_idades_norm = {_normalizar_texto(k): v for k, v in mapa_idades.items()}
+
+            registros = []
+            for i in range(0, len(df_sheet) - 1):
+                municipio = _normalizar_municipio(df_sheet.iloc[i].get('Unnamed: 1'))
+                if not municipio:
+                    continue
+
+                linha_valores = df_sheet.iloc[i + 1]
+                registro = {'municipio_join': municipio}
+                tem_valor = False
+
+                for coluna, rotulo in zip(colunas_valor, rotulos):
+                    destino = mapa_idades_norm.get(_normalizar_texto(rotulo))
+                    if not destino:
+                        continue
+                    valor = _to_numeric(pd.Series([linha_valores.get(coluna)])).iloc[0]
+                    registro[destino] = valor
+                    if pd.notna(valor):
+                        tem_valor = True
+
+                if tem_valor:
+                    registros.append(registro)
+
+            if not registros:
+                return None
+
+            df_out = pd.DataFrame(registros)
+            return df_out.groupby('municipio_join', as_index=False).first()
+
         # Se existe parquet processado, carrega dele (mais rápido)
         if parquet_path.exists() and not force_download:
             try:
                 df = pd.read_parquet(str(parquet_path))
-                return df, None
+                colunas_novas = {
+                    'TOTAL_PESSOAS_2_MAIS',
+                    'PESSOAS_COM_DEFICIENCIA_2_MAIS',
+                    'POPULACAO_RESIDENTE_DIAGNOSTICADA_COM_AUTISMO',
+                    'PCD_IDADE_2_4'
+                }
+                if colunas_novas.issubset(set(df.columns)):
+                    return df, None
             except Exception as e:
                 _log_error(f"❌ Erro ao carregar Parquet: {str(e)}")
                 return None, None
@@ -754,6 +920,148 @@ class HTTPDataLoader:
                 col_perc = f'perc_{raca}'
                 if col_pop in df.columns:
                     df[col_perc] = (pd.to_numeric(df[col_pop], errors='coerce') / df['populacao_total'] * 100).round(2)
+
+            # Chave de merge por município (normalizada)
+            df['municipio_join'] = df['municipio'].apply(_normalizar_municipio)
+
+            # =============================================================
+            # Planilhas complementares (Deficiência e Autismo - 2022)
+            # =============================================================
+
+            mapas_planilhas = [
+                (
+                    'Planilha53',
+                    {
+                        'Total': 'total_pessoas_2_mais',
+                        'Pessoa com deficiência': 'pessoas_com_deficiencia_2_mais',
+                        'Pessoa sem deficiência': 'pessoas_sem_deficiencia_2_mais'
+                    }
+                ),
+                (
+                    'deficiência por  grupos de idad',
+                    {}
+                ),
+                (
+                    'Planilha33',
+                    {
+                        'Total': 'pcd_cor_total',
+                        'Branca': 'pcd_cor_branca',
+                        'Preta': 'pcd_cor_preta',
+                        'Amarela': 'pcd_cor_amarela',
+                        'Parda': 'pcd_cor_parda',
+                        'Indígena': 'pcd_cor_indigena'
+                    }
+                ),
+                (
+                    'Planilha35',
+                    {
+                        'Total': 'pcd_dificuldades_total',
+                        'Dificuldade permanente para enxergar, mesmo usando óculos ou lentes de contato': 'pcd_dificuldade_enxergar',
+                        'Dificuldade permanente para ouvir, mesmo usando aparelhos auditivos': 'pcd_dificuldade_ouvir',
+                        'Dificuldade permanente para andar ou subir degraus, mesmo usando prótese ou outro aparelho de auxílio': 'pcd_dificuldade_andar',
+                        'Dificuldade permanente para pegar pequenos objetos, como botão ou lápis, ou abrir e fechar tampas de garrafas, mesmo usando aparelho de auxílio': 'pcd_dificuldade_pegar_objetos',
+                        'Dificuldade permanente para se comunicar, realizar cuidados pessoais, trabalhar ou estudar por causa de alguma limitação nas funções mentais': 'pcd_dificuldade_mental'
+                    }
+                ),
+                (
+                    'Planilha37',
+                    {
+                        'Total': 'pcd_qtd_dificuldades_total',
+                        '1 dificuldade': 'pcd_qtd_1_dificuldade',
+                        '2 ou mais dificuldades': 'pcd_qtd_2_mais_dificuldades'
+                    }
+                ),
+                (
+                    'Planilha39',
+                    {
+                        'Total': 'taxa_analfabetismo_pcd_total',
+                        'Branca': 'taxa_analfabetismo_pcd_branca',
+                        'Preta': 'taxa_analfabetismo_pcd_preta',
+                        'Amarela': 'taxa_analfabetismo_pcd_amarela',
+                        'Parda': 'taxa_analfabetismo_pcd_parda',
+                        'Indígena': 'taxa_analfabetismo_pcd_indigena'
+                    }
+                ),
+                (
+                    'Planilha41',
+                    {
+                        'Total': 'pcd_instrucao_25_mais_total',
+                        'Sem instrução e fundamental incompleto': 'pcd_instrucao_sem_instr_fund_incomp',
+                        'Fundamental completo e médio incompleto': 'pcd_instrucao_fund_comp_medio_incomp',
+                        'Médio completo e superior incompleto': 'pcd_instrucao_medio_comp_sup_incomp',
+                        'Superior completo': 'pcd_instrucao_superior_comp'
+                    }
+                ),
+                (
+                    'Planilha43',
+                    {
+                        ' População residente': 'populacao_residente_total',
+                        'População residente diagnosticada com autismo': 'populacao_residente_diagnosticada_com_autismo',
+                        'Percentual da população residente diagnosticada com autismo no total da população residente (%)': 'percentual_autismo_pop_residente'
+                    }
+                ),
+                (
+                    'Planilha45',
+                    {
+                        'Total': 'autismo_cor_total',
+                        'Branca': 'autismo_cor_branca',
+                        'Preta': 'autismo_cor_preta',
+                        'Amarela': 'autismo_cor_amarela',
+                        'Parda': 'autismo_cor_parda',
+                        'Indígena': 'autismo_cor_indigena'
+                    }
+                ),
+                (
+                    'Planilha47',
+                    {
+                        'Total': 'autismo_homens_mulheres_total',
+                        'Homens': 'autismo_homens',
+                        'Mulheres': 'autismo_mulheres'
+                    }
+                ),
+                (
+                    'Planilha49',
+                    {
+                        'Total': 'autismo_25_mais_instrucao_total',
+                        'Sem instrução e fundamental incompleto': 'autismo_25_mais_sem_instr_fund_incomp',
+                        'Fundamental completo e médio incompleto': 'autismo_25_mais_fund_comp_medio_incomp',
+                        'Médio completo e superior incompleto': 'autismo_25_mais_medio_comp_sup_incomp',
+                        'Superior completo': 'autismo_25_mais_superior_comp'
+                    }
+                ),
+                (
+                    'Planilha51',
+                    {
+                        'Domicílios particulares permanentes ocupados- Total': 'domicilios_total',
+                        'Domicílios particulares permanentes ocupados com pelo menos um morador diagnosticado com autismo (Unidades)': 'domicilios_com_morador_autismo',
+                        'Percentual de domicílios particulares permanentes ocupados com pelo menos um morador diagnosticado com autismo no total de domicílios particulares permanentes ocupados (%)': 'percentual_domicilios_com_autismo'
+                    }
+                )
+            ]
+
+            for sheet_name, mapa in mapas_planilhas:
+                tabela = _extrair_tabela_por_municipio(sheet_name, mapa)
+                if tabela is not None and not tabela.empty:
+                    df = df.merge(tabela, on='municipio_join', how='left')
+
+            tabela_idade = _extrair_idade_planilha31()
+            if tabela_idade is not None and not tabela_idade.empty:
+                df = df.merge(tabela_idade, on='municipio_join', how='left')
+
+            # Percentuais derivados (2 anos ou mais)
+            if {'total_pessoas_2_mais', 'pessoas_com_deficiencia_2_mais'}.issubset(df.columns):
+                df['perc_pessoas_com_deficiencia_2_mais'] = (
+                    df['pessoas_com_deficiencia_2_mais'] / df['total_pessoas_2_mais'] * 100
+                )
+
+            if {'total_pessoas_2_mais', 'pessoas_sem_deficiencia_2_mais'}.issubset(df.columns):
+                df['perc_pessoas_sem_deficiencia_2_mais'] = (
+                    df['pessoas_sem_deficiencia_2_mais'] / df['total_pessoas_2_mais'] * 100
+                )
+
+            # Remove coluna auxiliar
+            if 'municipio_join' in df.columns:
+                df = df.drop(columns=['municipio_join'])
             
             # Remove registros sem dados essenciais
             df = df.dropna(subset=['municipio'])
