@@ -159,10 +159,10 @@ faixas_disponiveis = [
     if col_exists(df, col)
 ]
 
-faixas_sel = st.sidebar.multiselect(
-    "👶 Idades (deficiência)",
-    options=faixas_disponiveis,
-    default=faixas_disponiveis
+faixa_idade_sel = st.sidebar.selectbox(
+    "👶 Idade (deficiência)",
+    options=['Todas'] + faixas_disponiveis,
+    index=0
 )
 
 modo_visualizacao = st.sidebar.radio(
@@ -276,7 +276,10 @@ with tab2:
     st.markdown("### 📊 Perfil da deficiência")
 
     st.markdown("#### Idade (pessoas com deficiência)")
-    idade_map_filtrado = {k: v for k, v in faixas_idade_map.items() if k in faixas_sel}
+    if faixa_idade_sel == 'Todas':
+        idade_map_filtrado = {k: v for k, v in faixas_idade_map.items() if col_exists(df, v)}
+    else:
+        idade_map_filtrado = {faixa_idade_sel: faixas_idade_map[faixa_idade_sel]}
     df_idade = preparar_visualizacao(build_series(df, idade_map_filtrado), com_def)
     if not df_idade.empty:
         exibir_grafico_barras(
