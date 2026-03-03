@@ -60,6 +60,26 @@ DATA_SOURCES = {
     #         2024: {...}
     #     }
     # }
+    'ibge': {
+        'name': 'IBGE - Instituto Brasileiro de Geografia e Estatística',
+        'description': 'Dados demográficos e socioeconômicos do Brasil',
+        'website': 'https://www.ibge.gov.br',
+        'urls': {
+            'consolidado': {
+                'tabela-7336': 'https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/dados-ibge-2021-2024/tabela7336.csv'
+            }
+        }
+    },
+    'pcd': {
+        'name': 'PCD - Pessoas com Deficiência',
+        'description': 'Dados de inclusão digital para pessoas com deficiência',
+        'website': 'https://github.com/mvaldecy/observatorio-inclusao-digital',
+        'urls': {
+            2024: {
+                'dados-pcd': 'https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/dados_pcd/Territorios.desenvolvimento_PCD_TEA.xlsx'
+            }
+        }
+    }
 }
 
 

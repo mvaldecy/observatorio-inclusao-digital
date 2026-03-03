@@ -7,6 +7,8 @@ Módulo de análise de dados da ANATEL (Agência Nacional de Telecomunicações)
 - **[GUIA_ESTATISTICAS.md](GUIA_ESTATISTICAS.md)** - Guia completo sobre análise estatística de cobertura móvel
 - **[exemplo_analise_estatistica.py](exemplo_analise_estatistica.py)** - Exemplos práticos de análise
 - **[exemplo_uso.py](exemplo_uso.py)** - Exemplos básicos de uso
+- **[dicionario_dados.py](dicionario_dados.py)** - Dicionário de metadados das colunas
+- **[exemplo_uso_dicionario.py](exemplo_uso_dicionario.py)** - Exemplos de uso do dicionário de dados
 
 ## 📋 Estrutura
 
@@ -16,7 +18,9 @@ anatel/
 ├── analisador_anatel.py             # Análise de dados escolares
 ├── analisador_cobertura_movel.py    # Análise de cobertura móvel
 ├── municipios_ibge.py               # Mapeamento de códigos IBGE
+├── dicionario_dados.py              # Dicionário de metadados (labels das colunas)
 ├── exemplo_uso.py                   # Exemplos básicos
+├── exemplo_uso_dicionario.py        # Exemplos de uso do dicionário
 ├── exemplo_analise_estatistica.py   # Exemplos de análise estatística
 ├── GUIA_ESTATISTICAS.md            # Guia didático de estatísticas
 └── README.md                        # Esta documentação
@@ -172,6 +176,70 @@ print(f"Total de escolas rurais no PI: {len(analisador.df):,}")
 | `get_dataframe()` | Retorna DataFrame atual | DataFrame |
 | `get_colunas()` | Lista colunas | List |
 
+## 📖 Dicionário de Dados
+
+O módulo `dicionario_dados.py` fornece metadados para todas as 81 colunas dos dados da ANATEL, similar ao padrão usado nos dados CETIC.
+
+### Funções Disponíveis
+
+```python
+from anatel.dicionario_dados import (
+    obter_label,
+    obter_valor_label,
+    eh_coluna_binaria,
+    eh_coluna_numerica,
+    listar_colunas_por_tipo,
+    COLUNAS,
+    VALORES
+)
+
+# Obter descrição de uma coluna
+label = obter_label('CONECT_POSSUI_INTERNET')
+# Retorna: "Indica se possui acesso à internet"
+
+# Obter label de um valor
+uf_nome = obter_valor_label('SG_UF', 'PI')
+# Retorna: "Piauí"
+
+# Verificar tipo de coluna
+if eh_coluna_binaria('ESCOLAS_CONECTADAS'):
+    print("Esta é uma coluna de Sim/Não")
+
+# Listar colunas por tipo
+binarias = listar_colunas_por_tipo('binarias')  # 34 colunas
+numericas = listar_colunas_por_tipo('numericas')  # 18 colunas
+coordenadas = listar_colunas_por_tipo('coordenadas')  # 2 colunas
+```
+
+### Categorias de Colunas
+
+- **Identificação**: COD_INEP, NO_ENTIDADE
+- **Localização**: UF, município, região, latitude/longitude
+- **Tipo de escola**: dependência administrativa, localização urbana/rural
+- **Dados escolares**: matrículas, turmas, docentes
+- **Energia**: tipos de energia, adequação
+- **Conectividade**: acesso, cobertura, adequação
+- **Programas**: ENEC, EACE, FUST, GESAC, PBLE, RNP, etc
+- **Velocidades**: velocidades contratadas e medidas
+- **Monitoramento**: NIC.br, quantidade de programas
+
+### Uso com Streamlit
+
+```python
+import streamlit as st
+from anatel.dicionario_dados import obter_label, listar_colunas_por_tipo
+
+# Criar seletor de indicadores com labels descritivas
+colunas_binarias = listar_colunas_por_tipo('binarias')
+labels_dict = {col: obter_label(col) for col in colunas_binarias}
+
+indicador = st.selectbox(
+    "Selecione o indicador",
+    options=colunas_binarias,
+    format_func=lambda x: labels_dict[x]
+)
+```
+
 ## 🎯 Diferenças do CETIC
 
 O AnalisadorAnatel é **mais simples** que os analisadores CETIC porque:
@@ -180,6 +248,7 @@ O AnalisadorAnatel é **mais simples** que os analisadores CETIC porque:
 2. **Busca flexível**: Encontra colunas por nome aproximado (ex: busca por "UF" encontra "SIGLA_UF")
 3. **Filtros por nome**: Usa nomes de colunas diretamente, não precisa de classe de metadados
 4. **Foco em análise geográfica**: Métodos específicos para UF, região, urbano/rural
+5. **Dicionário de dados**: Agora possui dicionário similar ao CETIC para padronizar labels
 
 ## 🔄 Anos Disponíveis
 
