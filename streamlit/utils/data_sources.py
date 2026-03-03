@@ -50,8 +50,8 @@ DATA_SOURCES = {
             2022:{
                 'educacao-basica': 'https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/inep-2022/microdados_ed_basica_2022.csv'
             }
-        }
-    }
+        }},
+
     # 'ibge': {
     #     'name': 'IBGE - Instituto Brasileiro de Geografia e Estatística',
     #     'description': 'Dados demográficos e socioeconômicos',
