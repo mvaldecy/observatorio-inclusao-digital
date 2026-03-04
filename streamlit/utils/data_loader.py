@@ -349,6 +349,29 @@ def carregar_dados_pcd(ano: int = 2024, force_download: bool = False):
 
 
 @cache_decorator
+def carregar_dados_pcd_brasil_nordeste(ano: int = 2024, force_download: bool = False):
+    """
+    Carrega dados agregados PCD (Brasil e Nordeste) via HTTP (GitHub Releases)
+
+    Args:
+        ano: Ano dos dados (default: 2024)
+        force_download: Forçar novo download mesmo se existir cache
+
+    Returns:
+        DataFrame com os dados agregados ou None se falhar
+    """
+    loader = HTTPDataLoader(fonte='pcd')
+
+    resultado = loader.carregar_dados(ano, 'dados-pcd-br-ne', force_download)
+
+    if resultado:
+        df, _ = resultado
+        return df
+
+    return None
+
+
+@cache_decorator
 def get_analisador_pcd(ano: int = 2024):
     """
     Retorna uma instância única do AnalisadorPCD.

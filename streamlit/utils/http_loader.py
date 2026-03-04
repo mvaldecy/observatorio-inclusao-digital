@@ -803,18 +803,84 @@ class HTTPDataLoader:
             df_out = pd.DataFrame(registros)
             return df_out.groupby('municipio_join', as_index=False).first()
 
+        def _carregar_tabela10126_brasil_nordeste() -> Optional[pd.DataFrame]:
+            """Fallback para arquivo agregado Brasil/Nordeste (tabela10126.xlsx)."""
+            try:
+                df_t1 = pd.read_excel(temp_xlsx, sheet_name='Tabela 1', engine='openpyxl', header=None)
+                df_t2 = pd.read_excel(temp_xlsx, sheet_name='Tabela 2', engine='openpyxl', header=None)
+            except Exception:
+                return None
+
+            if len(df_t1) < 7 or len(df_t2) < 7:
+                return None
+
+            try:
+                registros = []
+                for linha in [5, 6]:
+                    regiao = df_t1.iloc[linha, 0]
+                    total = pd.to_numeric(pd.Series([df_t1.iloc[linha, 1]]), errors='coerce').iloc[0]
+                    com_def = pd.to_numeric(pd.Series([df_t2.iloc[linha, 1]]), errors='coerce').iloc[0]
+
+                    if pd.isna(regiao) or pd.isna(total) or pd.isna(com_def):
+                        continue
+
+                    regiao_txt = str(regiao).strip()
+                    registros.append({
+                        'municipio': regiao_txt,
+                        'municipio_join': regiao_txt.upper(),
+                        'regiao': regiao_txt,
+                        'uf': 'BR' if regiao_txt.lower() == 'brasil' else None,
+                        'estado': None,
+                        'total_pessoas_2_mais': float(total),
+                        'pessoas_com_deficiencia_2_mais': float(com_def),
+                        'pessoas_sem_deficiencia_2_mais': float(total - com_def),
+                        'ano': ano,
+                    })
+
+                if not registros:
+                    return None
+
+                df_out = pd.DataFrame(registros)
+                df_out['perc_pessoas_com_deficiencia_2_mais'] = (
+                    df_out['pessoas_com_deficiencia_2_mais'] / df_out['total_pessoas_2_mais'] * 100
+                )
+                df_out['perc_pessoas_sem_deficiencia_2_mais'] = (
+                    df_out['pessoas_sem_deficiencia_2_mais'] / df_out['total_pessoas_2_mais'] * 100
+                )
+                return df_out
+            except Exception:
+                return None
+
         # Se existe parquet processado, carrega dele (mais rápido)
         if parquet_path.exists() and not force_download:
             try:
                 df = pd.read_parquet(str(parquet_path))
-                colunas_novas = {
-                    'TOTAL_PESSOAS_2_MAIS',
-                    'PESSOAS_COM_DEFICIENCIA_2_MAIS',
-                    'POPULACAO_RESIDENTE_DIAGNOSTICADA_COM_AUTISMO',
-                    'PCD_IDADE_2_4'
-                }
-                if colunas_novas.issubset(set(df.columns)):
-                    return df, None
+                colunas_df = set(df.columns)
+
+                if tipo == 'dados-pcd':
+                    colunas_municipais = {
+                        'TOTAL_PESSOAS_2_MAIS',
+                        'PESSOAS_COM_DEFICIENCIA_2_MAIS',
+                        'POPULACAO_RESIDENTE_DIAGNOSTICADA_COM_AUTISMO',
+                        'PCD_IDADE_2_4'
+                    }
+                    if colunas_municipais.issubset(colunas_df):
+                        qtd_municipios = 0
+                        if 'MUNICIPIO' in df.columns:
+                            qtd_municipios = int(df['MUNICIPIO'].nunique())
+                        elif 'municipio' in df.columns:
+                            qtd_municipios = int(df['municipio'].nunique())
+
+                        if qtd_municipios >= 50:
+                            return df, None
+
+                elif tipo == 'dados-pcd-br-ne':
+                    colunas_agregadas = {
+                        'TOTAL_PESSOAS_2_MAIS',
+                        'PESSOAS_COM_DEFICIENCIA_2_MAIS'
+                    }
+                    if colunas_agregadas.issubset(colunas_df):
+                        return df, None
             except Exception as e:
                 _log_error(f"❌ Erro ao carregar Parquet: {str(e)}")
                 return None, None
@@ -838,7 +904,7 @@ class HTTPDataLoader:
             if not self._download_file(url, temp_xlsx):
                 return None, None
 
-            # Lê as abas relevantes do arquivo
+            # Lê as abas relevantes do arquivo (layout legado)
             # População_2022: dados populacionais 2022
             df_pop2022 = pd.read_excel(temp_xlsx, sheet_name='População_2022', engine='openpyxl')
             
@@ -1067,7 +1133,7 @@ class HTTPDataLoader:
             df = df.dropna(subset=['municipio'])
             
             if df.empty:
-                _log_error(f"❌ Nenhum dado válido encontrado após processamento")
+                _log_error("Nenhum dado válido encontrado após processamento")
                 return None, None
 
             # Limpa e otimiza o DataFrame
@@ -1077,12 +1143,24 @@ class HTTPDataLoader:
             # Salva como parquet
             df.to_parquet(parquet_path, compression='snappy', engine='pyarrow')
             
-            print(f"✓ Dados PCD processados: {len(df)} municípios do Piauí")
+            print(f"Dados PCD processados: {len(df)} municípios do Piauí")
 
             return df, None
 
         except Exception as e:
-            _log_error(f"❌ Erro ao baixar/processar dados PCD: {str(e)}")
+            # Fallback: novo layout agregado (Brasil e Grande Região)
+            df_fallback = _carregar_tabela10126_brasil_nordeste()
+            if df_fallback is not None and not df_fallback.empty:
+                try:
+                    df_fallback = self._limpar_colunas(df_fallback)
+                    df_fallback = self._preparar_dataframe(df_fallback, aplicar_categorizacao=True)
+                    df_fallback.to_parquet(parquet_path, compression='snappy', engine='pyarrow')
+                    print(f"Dados PCD processados (agregado Brasil/Nordeste): {len(df_fallback)} registros")
+                    return df_fallback, None
+                except Exception as e2:
+                    print(f"Erro no fallback do PCD agregado: {str(e2)}")
+
+            _log_error(f"Erro ao baixar/processar dados PCD: {str(e)}")
             import traceback
             _log_error(f"Detalhes: {traceback.format_exc()}")
             return None, None

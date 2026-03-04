@@ -16,7 +16,11 @@ for p in [root_path, streamlit_path]:
         sys.path.append(p)
 
 from components.header import criar_header
-from utils.data_loader import get_analisador_pcd, get_anos_disponiveis_pcd
+from utils.data_loader import (
+    get_analisador_pcd,
+    get_anos_disponiveis_pcd,
+    carregar_dados_pcd_brasil_nordeste,
+)
 
 
 st.set_page_config(
@@ -42,6 +46,13 @@ criar_header(
 
 def col_exists(df: pd.DataFrame, col: str) -> bool:
     return col in df.columns
+
+
+def first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
+    for col in candidates:
+        if col in df.columns:
+            return col
+    return None
 
 
 def sum_col(df: pd.DataFrame, col: str) -> float:
@@ -96,6 +107,66 @@ def exibir_grafico_barras(df_plot: pd.DataFrame, x_col: str, modo: str, titulo: 
     st.plotly_chart(fig, use_container_width=True)
 
 
+def montar_comparativo_territorial_pcd(
+    df_agregado_br_ne: pd.DataFrame | None,
+    df_base_piaui: pd.DataFrame | None,
+) -> tuple[pd.DataFrame, dict]:
+    if df_agregado_br_ne is None:
+        df_agregado_br_ne = pd.DataFrame()
+    if df_base_piaui is None:
+        df_base_piaui = pd.DataFrame()
+
+    col_total_ag = first_existing_col(df_agregado_br_ne, ['TOTAL_PESSOAS_2_MAIS', 'total_pessoas_2_mais'])
+    col_pcd_ag = first_existing_col(df_agregado_br_ne, ['PESSOAS_COM_DEFICIENCIA_2_MAIS', 'pessoas_com_deficiencia_2_mais'])
+    col_recorte_ag = first_existing_col(df_agregado_br_ne, ['MUNICIPIO', 'municipio', 'REGIAO', 'regiao'])
+
+    col_total_pi = first_existing_col(df_base_piaui, ['TOTAL_PESSOAS_2_MAIS', 'total_pessoas_2_mais'])
+    col_pcd_pi = first_existing_col(df_base_piaui, ['PESSOAS_COM_DEFICIENCIA_2_MAIS', 'pessoas_com_deficiencia_2_mais'])
+
+    if (not col_total_ag or not col_pcd_ag or not col_recorte_ag) and (not col_total_pi or not col_pcd_pi):
+        return pd.DataFrame(), {
+            'tem_colunas_minimas': False,
+            'tem_recorte_nacional': False,
+            'recortes_distintos': 0
+        }
+
+    dados = []
+
+    if col_total_ag and col_pcd_ag and col_recorte_ag:
+        serie_recorte = df_agregado_br_ne[col_recorte_ag].astype(str).str.strip().str.lower()
+
+        for nome_recorte, nome_saida in [('brasil', 'Brasil'), ('nordeste', 'Nordeste')]:
+            df_rec = df_agregado_br_ne[serie_recorte == nome_recorte]
+            if df_rec.empty:
+                continue
+
+            total = sum_col(df_rec, col_total_ag)
+            pcd = sum_col(df_rec, col_pcd_ag)
+            dados.append({
+                'Recorte': nome_saida,
+                'Total 2+': total,
+                'Com deficiência (2+)': pcd,
+                'Percentual (%)': (pcd / total * 100) if total > 0 else 0.0
+            })
+
+    if col_total_pi and col_pcd_pi:
+        total_pi = sum_col(df_base_piaui, col_total_pi)
+        pcd_pi = sum_col(df_base_piaui, col_pcd_pi)
+        dados.append({
+            'Recorte': 'Piauí',
+            'Total 2+': total_pi,
+            'Com deficiência (2+)': pcd_pi,
+            'Percentual (%)': (pcd_pi / total_pi * 100) if total_pi > 0 else 0.0
+        })
+
+    recortes_distintos = len(pd.DataFrame(dados)['Recorte'].dropna().unique()) if dados else 0
+    return pd.DataFrame(dados), {
+        'tem_colunas_minimas': recortes_distintos > 0,
+        'tem_recorte_nacional': recortes_distintos >= 2,
+        'recortes_distintos': recortes_distintos
+    }
+
+
 # ============================================================================
 # Sidebar
 # ============================================================================
@@ -113,6 +184,8 @@ try:
     with st.spinner('🔄 Carregando base PCD...'):
         analisador = get_analisador_pcd(ano=ano_selecionado)
         df = analisador.get_dados_atuais()
+        df_base_piaui = df.copy()
+        df_br_ne = carregar_dados_pcd_brasil_nordeste(ano=ano_selecionado)
 except Exception as e:
     st.error(f"❌ Erro ao carregar dados: {e}")
     st.stop()
@@ -173,6 +246,69 @@ modo_visualizacao = st.sidebar.radio(
 )
 
 st.sidebar.success(f"✅ {len(df):,} municípios no recorte")
+
+
+# ============================================================================
+# Comparativo Territorial (Topo da Tela)
+# ============================================================================
+
+st.markdown("### 🌎 Comparativo geral: Brasil x Nordeste x Piauí")
+st.caption("Indicador: percentual de pessoas com deficiência entre pessoas de 2 anos ou mais.")
+
+df_comp, status_comp = montar_comparativo_territorial_pcd(df_br_ne, df_base_piaui)
+
+if not status_comp['tem_colunas_minimas']:
+    st.warning("A base atual não contém as colunas necessárias para o comparativo territorial.")
+elif df_comp.empty:
+    st.warning("Não foi possível montar o comparativo territorial com os dados atuais.")
+else:
+    if not status_comp['tem_recorte_nacional']:
+        st.warning(
+            "A base atual de PCD está com cobertura territorial limitada "
+            f"({status_comp['recortes_distintos']} recorte(s) disponível(is)). "
+            "O valor de 'Brasil' pode refletir apenas esse subconjunto."
+        )
+
+    m1, m2, m3 = st.columns(3)
+    for col_metric, recorte in zip([m1, m2, m3], ['Brasil', 'Nordeste', 'Piauí']):
+        linha = df_comp[df_comp['Recorte'] == recorte]
+        if linha.empty:
+            col_metric.metric(recorte, "N/D")
+        else:
+            percentual = float(linha['Percentual (%)'].iloc[0])
+            col_metric.metric(recorte, f"{percentual:.2f}%")
+
+    fig_comp = px.bar(
+        df_comp,
+        x='Recorte',
+        y='Percentual (%)',
+        text='Percentual (%)',
+        title='Percentual de pessoas com deficiência (2+) por recorte'
+    )
+    fig_comp.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
+    fig_comp.update_yaxes(title='Percentual (%)')
+    st.plotly_chart(fig_comp, use_container_width=True)
+
+    df_comp_exibir = df_comp.copy()
+    df_comp_exibir['Total 2+'] = df_comp_exibir['Total 2+'].round(0)
+    df_comp_exibir['Com deficiência (2+)'] = df_comp_exibir['Com deficiência (2+)'].round(0)
+
+    if modo_visualizacao == 'Número de pessoas':
+        st.dataframe(
+            df_comp_exibir[['Recorte', 'Total 2+', 'Com deficiência (2+)']],
+            use_container_width=True,
+            hide_index=True
+        )
+    elif modo_visualizacao == 'Percentual (%)':
+        st.dataframe(
+            df_comp_exibir[['Recorte', 'Percentual (%)']],
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.dataframe(df_comp_exibir, use_container_width=True, hide_index=True)
+
+st.markdown("---")
 
 
 # ============================================================================
