@@ -53,7 +53,7 @@ def renderizar_filtros(df: pd.DataFrame, info: dict) -> tuple[str | None, str | 
     with col3:
         st.write("")
         st.write("")
-        if st.button("🗑️ Limpar Filtros", use_container_width=True):
+        if st.button("🗑️ Limpar Filtros", width='stretch'):
             st.rerun()
     
     return selected_uf, selected_municipio

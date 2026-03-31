@@ -246,7 +246,7 @@ def renderizar_mapa_interativo(
         altura=altura
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Estatísticas resumidas
     st.markdown("---")
@@ -300,7 +300,7 @@ def mapa_com_tabs_4g_5g(
             altura=600
         )
 
-        st.plotly_chart(fig_4g, use_container_width=True, key="mapa_4g")
+        st.plotly_chart(fig_4g, width='stretch', key="mapa_4g")
 
         # Estatísticas 4G
         col1, col2, col3, col4 = st.columns(4)
@@ -330,7 +330,7 @@ def mapa_com_tabs_4g_5g(
             altura=600
         )
 
-        st.plotly_chart(fig_5g, use_container_width=True, key="mapa_5g")
+        st.plotly_chart(fig_5g, width='stretch', key="mapa_5g")
 
         # Estatísticas 5G
         col1, col2, col3, col4 = st.columns(4)
@@ -389,7 +389,7 @@ def mapa_com_tabs_4g_5g(
             altura=500
         )
 
-        st.plotly_chart(fig_diff, use_container_width=True, key="mapa_diff")
+        st.plotly_chart(fig_diff, width='stretch', key="mapa_diff")
 
         # Gráfico de barras comparativo
         st.markdown("---")
@@ -429,7 +429,7 @@ def mapa_com_tabs_4g_5g(
             margin=dict(l=10, r=10, t=10, b=10)
         )
 
-        st.plotly_chart(fig_bars, use_container_width=True, key="bars_comp")
+        st.plotly_chart(fig_bars, width='stretch', key="bars_comp")
 
         # Tabela comparativa
         st.markdown("---")
@@ -447,7 +447,7 @@ def mapa_com_tabs_4g_5g(
         df_comp_show['Cobertura_5G'] = df_comp_show['Cobertura_5G'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
         df_comp_show['Diferenca'] = df_comp_show['Diferenca'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
 
-        st.dataframe(df_comp_show, use_container_width=True, height=400)
+        st.dataframe(df_comp_show, width='stretch', height=400)
 
 
 

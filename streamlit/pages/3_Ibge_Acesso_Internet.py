@@ -234,13 +234,13 @@ with st.sidebar:
     col_btn1, col_btn2 = st.columns(2)
     
     with col_btn1:
-        if st.button("🔄 Recarregar", help="Atualizar dados", use_container_width=True):
+        if st.button("🔄 Recarregar", help="Atualizar dados", width='stretch'):
             st.cache_data.clear()
             st.cache_resource.clear()
             st.rerun()
     
     with col_btn2:
-        if st.button("🗑️ Limpar Cache", help="Remover dados em cache", use_container_width=True):
+        if st.button("🗑️ Limpar Cache", help="Remover dados em cache", width='stretch'):
             st.cache_data.clear()
             st.cache_resource.clear()
             st.info("✓ Cache limpo!")
@@ -271,7 +271,7 @@ with st.sidebar:
             key="regiao_selecionada"
         )
     with col_r2:
-        if st.button("✓ Todos", key="btn_todas_regioes", use_container_width=True):
+        if st.button("✓ Todos", key="btn_todas_regioes", width='stretch'):
             regiao_selecionada = regioes_options
     
     ufs_options = sorted(df_original['UF'].unique())
@@ -285,7 +285,7 @@ with st.sidebar:
             key="uf_selecionada"
         )
     with col_u2:
-        if st.button("✓ Todos", key="btn_todas_ufs", use_container_width=True):
+        if st.button("✓ Todos", key="btn_todas_ufs", width='stretch'):
             uf_selecionada = ufs_options
     
     # Níveis de instrução disponíveis
@@ -300,7 +300,7 @@ with st.sidebar:
             key='instrucao_selecionada'
         )
     with col_i2:
-        if st.button("✓ Todos", key="btn_todas_instrucoes", use_container_width=True):
+        if st.button("✓ Todos", key="btn_todas_instrucoes", width='stretch'):
             instrucao_selecionada = instrucao_options
 
 # ============================================================================
@@ -394,7 +394,7 @@ with tab1:
             st.markdown("### 🔥 Mapa de Calor - Acesso por Local e Nível de Instrução")
             st.caption("Verde = Alto acesso | Vermelho = Baixo acesso")
             fig_heatmap = criar_heatmap(heatmap_data)
-            st.plotly_chart(fig_heatmap, use_container_width=True, key="heatmap_local_instr")
+            st.plotly_chart(fig_heatmap, width='stretch', key="heatmap_local_instr")
             st.markdown("---")
         
         # Gráfico comparativo: localidades com melhor e pior acesso
@@ -422,7 +422,7 @@ with tab1:
         st.markdown("---")
         
         fig_ranking = criar_ranking(ranking_data, "Ranking de Acesso")
-        st.plotly_chart(fig_ranking, use_container_width=True, key="ranking_local")
+        st.plotly_chart(fig_ranking, width='stretch', key="ranking_local")
         st.markdown("---")
     else:
         st.info("Nenhum dado disponível para a seleção")
@@ -509,7 +509,7 @@ with tab2:
         )
     
     with col_instr_reg2:
-        if st.button("✓ Todos", key="btn_todas_instr_comp", use_container_width=True):
+        if st.button("✓ Todos", key="btn_todas_instr_comp", width='stretch'):
             instrucoes_comp = instrucoes_disp
     
     # Preparar dados para as 5 regiões
@@ -583,7 +583,7 @@ with tab2:
             showlegend=False
         )
         
-        st.plotly_chart(fig_geral, use_container_width=True, key="bar_regioes_geral")
+        st.plotly_chart(fig_geral, width='stretch', key="bar_regioes_geral")
         st.markdown("---")
         
         # Gráficos de barras lado a lado por nível de instrução
@@ -620,7 +620,7 @@ with tab2:
                 showlegend=False
             )
             
-            st.plotly_chart(fig_bar, use_container_width=True, key=f"bar_regiao_{instr}")
+            st.plotly_chart(fig_bar, width='stretch', key=f"bar_regiao_{instr}")
         
         st.markdown("---")
         st.markdown("### 📋 Resumo Estatístico")
@@ -629,7 +629,7 @@ with tab2:
         tabela_exib.columns = ['Região', 'Acesso à Internet (%)']
         tabela_exib = tabela_exib.sort_values('Acesso à Internet (%)', ascending=False)
         
-        st.dataframe(tabela_exib, use_container_width=True, hide_index=True)
+        st.dataframe(tabela_exib, width='stretch', hide_index=True)
     else:
         st.warning("⚠️ Nenhum dado disponível para os filtros selecionados")
 
@@ -768,7 +768,7 @@ with tab3:
                             xaxis=dict(range=[0, 100])
                         )
                         
-                        st.plotly_chart(fig, use_container_width=True, key=f"mun_bar_{municipio}")
+                        st.plotly_chart(fig, width='stretch', key=f"mun_bar_{municipio}")
     else:
         st.warning(f"⚠️ Nenhum município encontrado para {uf_t3}")
 
@@ -802,7 +802,7 @@ with tab4:
                 data=csv,
                 file_name=f"ibge_tabela7336_{ano_selecionado}.csv",
                 mime="text/csv",
-                use_container_width=True
+                width='stretch'
             )
     
     if cols_shown:
@@ -828,7 +828,7 @@ with tab4:
         st.markdown("### 📊 Vista em Tabela")
         st.dataframe(
             df_display,
-            use_container_width=True,
+            width='stretch',
             height=300
         )
 

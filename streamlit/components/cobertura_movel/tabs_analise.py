@@ -47,7 +47,7 @@ def renderizar_tab_ranking(df_ranking: pd.DataFrame, selected_uf: str):
     df_show = df_show[['Posição', 'Município', 'Cobertura (%)']]
     
     # Mostra tabela
-    st.dataframe(df_show, use_container_width=True, height=500, hide_index=True)
+    st.dataframe(df_show, width='stretch', height=500, hide_index=True)
     
     # Download
     csv_data = df_display[['Município', 'Cobertura', 'Posição']].to_csv(index=False).encode('utf-8')
@@ -56,7 +56,7 @@ def renderizar_tab_ranking(df_ranking: pd.DataFrame, selected_uf: str):
         data=csv_data,
         file_name=f"ranking_cobertura_{selected_uf}.csv",
         mime="text/csv",
-        use_container_width=True
+        width='stretch'
     )
 
 
@@ -90,7 +90,7 @@ def renderizar_tab_graficos(df_ranking: pd.DataFrame, selected_uf: str):
             showlegend=False,
             margin=dict(l=10, r=10, t=10, b=10)
         )
-        st.plotly_chart(fig_top, use_container_width=True, key=f"top_graph_{selected_uf}")
+        st.plotly_chart(fig_top, width='stretch', key=f"top_graph_{selected_uf}")
     
     with col_graph2:
         st.markdown("#### ⚠️ Bottom 15 - Pior Cobertura")
@@ -113,7 +113,7 @@ def renderizar_tab_graficos(df_ranking: pd.DataFrame, selected_uf: str):
             showlegend=False,
             margin=dict(l=10, r=10, t=10, b=10)
         )
-        st.plotly_chart(fig_bottom, use_container_width=True, key=f"bottom_graph_{selected_uf}")
+        st.plotly_chart(fig_bottom, width='stretch', key=f"bottom_graph_{selected_uf}")
     
     # Histograma
     st.markdown("---")
@@ -195,7 +195,7 @@ def _renderizar_histograma(df_ranking: pd.DataFrame, selected_uf: str):
         xaxis=dict(range=[0, 105], dtick=10)
     )
     
-    st.plotly_chart(fig_hist, use_container_width=True, key=f"hist_{selected_uf}")
+    st.plotly_chart(fig_hist, width='stretch', key=f"hist_{selected_uf}")
     
     # Explicação
     with st.expander("ℹ️ Como interpretar o histograma", expanded=False):
@@ -262,7 +262,7 @@ def _renderizar_boxplot(df_ranking: pd.DataFrame, selected_uf: str):
     col_box1, col_box2 = st.columns([2, 1])
     
     with col_box1:
-        st.plotly_chart(fig_box, use_container_width=True, key=f"box_{selected_uf}")
+        st.plotly_chart(fig_box, width='stretch', key=f"box_{selected_uf}")
     
     with col_box2:
         st.markdown("**📊 Interpretação:**")
@@ -330,7 +330,7 @@ def renderizar_tab_personalizado(df_ranking: pd.DataFrame, selected_uf: str):
         df_top_dest = df_ranking.head(num_dest).copy()
         df_top_dest['Cobertura (%)'] = df_top_dest['Cobertura'].apply(lambda x: f"{x:.2f}%")
         df_top_dest = df_top_dest[['Posição', 'Município', 'Cobertura (%)']]
-        st.dataframe(df_top_dest, use_container_width=True, hide_index=True, height=400)
+        st.dataframe(df_top_dest, width='stretch', hide_index=True, height=400)
     
     with dest_col2:
         st.markdown(f"#### ⚠️ Bottom {num_dest}")
@@ -338,4 +338,4 @@ def renderizar_tab_personalizado(df_ranking: pd.DataFrame, selected_uf: str):
         df_bottom_dest['Posição'] = range(len(df_ranking), len(df_ranking) - num_dest, -1)
         df_bottom_dest['Cobertura (%)'] = df_bottom_dest['Cobertura'].apply(lambda x: f"{x:.2f}%")
         df_bottom_dest = df_bottom_dest[['Posição', 'Município', 'Cobertura (%)']]
-        st.dataframe(df_bottom_dest, use_container_width=True, hide_index=True, height=400)
+        st.dataframe(df_bottom_dest, width='stretch', hide_index=True, height=400)

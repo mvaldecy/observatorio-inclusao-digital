@@ -79,9 +79,9 @@ with st.sidebar:
     
     col1, col2 = st.columns(2)
     with col1:
-        force_reload = st.button("🔄 Recarregar", use_container_width=True)
+        force_reload = st.button("🔄 Recarregar", width='stretch')
     with col2:
-        if st.button("🗑️ Limpar Cache", use_container_width=True):
+        if st.button("🗑️ Limpar Cache", width='stretch'):
             st.cache_data.clear()
             st.success("Cache limpo!")
 
@@ -224,7 +224,7 @@ if col_regiao and len(df_filtro) > 0:
         font=dict(size=14)
     )
     
-    st.plotly_chart(fig_regiao, use_container_width=True, key="grafico_regiao_grande")
+    st.plotly_chart(fig_regiao, width='stretch', key="grafico_regiao_grande")
 else:
     st.info("Sem dados de região")
 
@@ -260,7 +260,7 @@ if col_uf and len(df_filtro) > 0:
         font=dict(size=14)
     )
     
-    st.plotly_chart(fig_estado, use_container_width=True, key="grafico_estado_grande")
+    st.plotly_chart(fig_estado, width='stretch', key="grafico_estado_grande")
 else:
     st.info("Sem dados de estado")
 
@@ -294,7 +294,7 @@ if col_localizacao and len(df_filtro) > 0:
         font=dict(size=14)
     )
     
-    st.plotly_chart(fig_loc, use_container_width=True, key="grafico_loc_grande")
+    st.plotly_chart(fig_loc, width='stretch', key="grafico_loc_grande")
 else:
     st.info("Sem dados de localização")
 
@@ -331,7 +331,7 @@ if col_localizacao and len(df_filtro) > 0:
         font=dict(size=14)
     )
     
-    st.plotly_chart(fig_pie, use_container_width=True, key="grafico_pie_grande")
+    st.plotly_chart(fig_pie, width='stretch', key="grafico_pie_grande")
 else:
     st.info("Sem dados para gráfico de pizza")
 
@@ -366,7 +366,7 @@ if col_uf and len(df_filtro) > 0:
         font=dict(size=14)
     )
     
-    st.plotly_chart(fig_top10, use_container_width=True, key="grafico_top10_grande")
+    st.plotly_chart(fig_top10, width='stretch', key="grafico_top10_grande")
 else:
     st.info("Sem dados para top 10")
 
@@ -376,7 +376,7 @@ st.markdown("---")
 st.markdown("## 📋 Dados Brutos")
 
 if len(df_filtro) > 0:
-    st.dataframe(df_filtro, use_container_width=True, height=600)
+    st.dataframe(df_filtro, width='stretch', height=600)
 else:
     st.info("Nenhum dado para exibir")
 

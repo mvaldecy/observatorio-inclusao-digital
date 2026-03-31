@@ -192,11 +192,11 @@ class ComparativoGeograficoINEP:
                     xaxis_title="",
                     yaxis_title="Percentual (%)"
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             # Tabela de dados (expandível)
             with st.expander("📋 Ver Detalhes"):
-                st.dataframe(resultado, use_container_width=True, hide_index=True)
+                st.dataframe(resultado, width='stretch', hide_index=True)
         else:
             st.warning("Sem dados disponíveis")
 
@@ -249,7 +249,7 @@ class ComparativoGeograficoINEP:
 
             with col1:
                 st.markdown("#### 📋 Tabela Comparativa")
-                st.dataframe(df_consolidado, use_container_width=True, hide_index=True)
+                st.dataframe(df_consolidado, width='stretch', hide_index=True)
 
             with col2:
                 st.markdown("#### 📈 Resumo")
@@ -289,7 +289,7 @@ class ComparativoGeograficoINEP:
 
             fig.update_traces(textposition='outside')
             fig.update_layout(height=500, xaxis_tickangle=-45)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
             # Download
             csv = df_consolidado.to_csv(index=False).encode('utf-8')

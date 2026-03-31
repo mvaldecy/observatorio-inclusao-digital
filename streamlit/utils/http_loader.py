@@ -191,7 +191,7 @@ class HTTPDataLoader:
             if df[col].dtype == 'object':
                 try:
                     # Limpeza básica
-                    df[col] = df[col].replace(['', ' ', '  ', 'nan', 'None', 'NaT', '<NA>', '-'], pd.NA)
+                    df[col] = df[col].replace(['', ' ', '  ', 'nan', 'None', 'NaT', '<NA>', '-'], pd.NA).infer_objects(copy=False)
                     
                     # Tenta converter para numérico
                     s_num = pd.to_numeric(df[col], errors='coerce')

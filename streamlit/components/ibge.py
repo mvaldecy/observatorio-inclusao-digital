@@ -78,8 +78,8 @@ def renderizar_analise_instrucao(df: pd.DataFrame):
 
     # Agrupa por instrução e calcula média do percentual
     resumo = df.groupby('INSTRUCAO')['PERCENTUAL'].mean().sort_values()
-    st.bar_chart(resumo.to_frame('PERCENTUAL'), use_container_width=True, height=350)
-    st.dataframe(resumo.reset_index().rename(columns={'index':'INSTRUCAO','PERCENTUAL':'PERCENTUAL'}), use_container_width=True)
+    st.bar_chart(resumo.to_frame('PERCENTUAL'), width='stretch', height=350)
+    st.dataframe(resumo.reset_index().rename(columns={'index':'INSTRUCAO','PERCENTUAL':'PERCENTUAL'}), width='stretch')
 
 
 def renderizar_resumo_filtros(df_original: pd.DataFrame, df_filtrado: pd.DataFrame):

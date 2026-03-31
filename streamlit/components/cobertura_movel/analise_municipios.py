@@ -312,7 +312,7 @@ def _renderizar_grafico_distribuicao(distribuicao: dict, selected_uf: str):
         paper_bgcolor='rgba(0,0,0,0)'
     )
     
-    st.plotly_chart(fig_dist, use_container_width=True, key=f"dist_{selected_uf}")
+    st.plotly_chart(fig_dist, width='stretch', key=f"dist_{selected_uf}")
 
 
 def _renderizar_tabs_faixas(distribuicao: dict, total_mun: int, selected_uf: str):
@@ -395,7 +395,7 @@ def _renderizar_top10(df_ranking: pd.DataFrame, selected_uf: str):
     df_top10_show['🥇'] = ['🥇', '🥈', '🥉'] + [''] * 7 if len(df_top10_show) >= 3 else [''] * len(df_top10_show)
     df_top10_show = df_top10_show[['🥇', 'Posição', 'Município', 'Cobertura (%)']]
     
-    st.dataframe(df_top10_show, use_container_width=True, hide_index=True, height=400)
+    st.dataframe(df_top10_show, width='stretch', hide_index=True, height=400)
     
     # Gráfico
     fig_top10 = go.Figure(data=[go.Bar(
@@ -416,7 +416,7 @@ def _renderizar_top10(df_ranking: pd.DataFrame, selected_uf: str):
         margin=dict(l=10, r=10, t=10, b=10)
     )
     
-    st.plotly_chart(fig_top10, use_container_width=True, key=f"top10_main_{selected_uf}")
+    st.plotly_chart(fig_top10, width='stretch', key=f"top10_main_{selected_uf}")
 
 
 def _renderizar_bottom10(df_ranking: pd.DataFrame, selected_uf: str):
@@ -433,7 +433,7 @@ def _renderizar_bottom10(df_ranking: pd.DataFrame, selected_uf: str):
     df_bottom10_show['⚠️'] = ['🚨'] * len(df_bottom10_show)
     df_bottom10_show = df_bottom10_show[['⚠️', 'Posição', 'Município', 'Cobertura (%)']]
     
-    st.dataframe(df_bottom10_show, use_container_width=True, hide_index=True, height=400)
+    st.dataframe(df_bottom10_show, width='stretch', hide_index=True, height=400)
     
     # Gráfico
     fig_bottom10 = go.Figure(data=[go.Bar(
@@ -454,7 +454,7 @@ def _renderizar_bottom10(df_ranking: pd.DataFrame, selected_uf: str):
         margin=dict(l=10, r=10, t=10, b=10)
     )
     
-    st.plotly_chart(fig_bottom10, use_container_width=True, key=f"bottom10_main_{selected_uf}")
+    st.plotly_chart(fig_bottom10, width='stretch', key=f"bottom10_main_{selected_uf}")
 
 
 def _renderizar_tabs_analise(df_ranking: pd.DataFrame, selected_uf: str):

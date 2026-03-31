@@ -133,9 +133,9 @@ with st.sidebar:
     
     col1, col2 = st.columns(2)
     with col1:
-        force_reload = st.button("🔄 Recarregar", use_container_width=True)
+        force_reload = st.button("🔄 Recarregar", width='stretch')
     with col2:
-        if st.button("🗑️ Limpar Cache", use_container_width=True):
+        if st.button("🗑️ Limpar Cache", width='stretch'):
             with st.spinner("Limpando cache..."):
                 st.cache_data.clear()
                 st.cache_resource.clear()

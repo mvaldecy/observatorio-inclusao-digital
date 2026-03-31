@@ -184,7 +184,7 @@ def _renderizar_visao_geral(df: pd.DataFrame):
         })
 
     df_info = pd.DataFrame(info_colunas)
-    st.dataframe(df_info, use_container_width=True, height=400)
+    st.dataframe(df_info, width='stretch', height=400)
 
 
 def _renderizar_primeiras_linhas(df: pd.DataFrame, n_linhas: int = 20):
@@ -200,7 +200,7 @@ def _renderizar_primeiras_linhas(df: pd.DataFrame, n_linhas: int = 20):
         step=5
     )
 
-    st.dataframe(df.head(n_linhas_custom), use_container_width=True, height=600)
+    st.dataframe(df.head(n_linhas_custom), width='stretch', height=600)
 
 
 def _renderizar_estatisticas(df: pd.DataFrame):
@@ -213,7 +213,7 @@ def _renderizar_estatisticas(df: pd.DataFrame):
 
     if len(colunas_numericas) > 0:
         st.markdown("#### Colunas Numéricas")
-        st.dataframe(df[colunas_numericas].describe(), use_container_width=True)
+        st.dataframe(df[colunas_numericas].describe(), width='stretch')
     else:
         st.info("Nenhuma coluna numérica encontrada")
 
@@ -232,7 +232,7 @@ def _renderizar_estatisticas(df: pd.DataFrame):
             })
 
         df_cat_info = pd.DataFrame(info_categoricas)
-        st.dataframe(df_cat_info, use_container_width=True)
+        st.dataframe(df_cat_info, width='stretch')
     else:
         st.info("Nenhuma coluna categórica encontrada")
 
@@ -250,9 +250,9 @@ def _renderizar_dados_completos(df: pd.DataFrame, nome_dataset: str):
     )
 
     if colunas_selecionadas:
-        st.dataframe(df[colunas_selecionadas], use_container_width=True, height=600)
+        st.dataframe(df[colunas_selecionadas], width='stretch', height=600)
     else:
-        st.dataframe(df, use_container_width=True, height=600)
+        st.dataframe(df, width='stretch', height=600)
 
     # Botão para baixar CSV
     st.markdown("---")

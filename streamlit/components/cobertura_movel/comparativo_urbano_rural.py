@@ -237,7 +237,7 @@ def _renderizar_graficos_urbano_rural(df_urb_rural: pd.DataFrame,
             paper_bgcolor='rgba(0,0,0,0)'
         )
         
-        st.plotly_chart(fig_comp_urb, use_container_width=True, key=f"comp_urb_{selected_uf}")
+        st.plotly_chart(fig_comp_urb, width='stretch', key=f"comp_urb_{selected_uf}")
     
     with comp_col2:
         st.markdown("#### 📈 Box Plot Comparativo")
@@ -266,7 +266,7 @@ def _renderizar_graficos_urbano_rural(df_urb_rural: pd.DataFrame,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         
-        st.plotly_chart(fig_box_comp, use_container_width=True, key=f"box_comp_{selected_uf}")
+        st.plotly_chart(fig_box_comp, width='stretch', key=f"box_comp_{selected_uf}")
 
 
 def _renderizar_tabela_estatisticas(stats_urb_rural: pd.DataFrame):
@@ -285,7 +285,7 @@ def _renderizar_tabela_estatisticas(stats_urb_rural: pd.DataFrame):
             'Desvio': '{:.2f}%',
             'Total': '{:,.0f}'
         }),
-        use_container_width=True
+        width='stretch'
     )
 
 

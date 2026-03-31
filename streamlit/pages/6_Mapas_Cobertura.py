@@ -59,12 +59,12 @@ with st.spinner("Carregando dados de cobertura..."):
 
                 with col1:
                     st.markdown("**Dados 4G:**")
-                    st.dataframe(df_4g.head(10), use_container_width=True)
+                    st.dataframe(df_4g.head(10), width='stretch')
                     st.caption(f"Total de {len(df_4g)} registros")
 
                 with col2:
                     st.markdown("**Dados 5G:**")
-                    st.dataframe(df_5g.head(10), use_container_width=True)
+                    st.dataframe(df_5g.head(10), width='stretch')
                     st.caption(f"Total de {len(df_5g)} registros")
 
             st.markdown("---")
