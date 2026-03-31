@@ -76,7 +76,8 @@ DATA_SOURCES = {
         'website': 'https://github.com/mvaldecy/observatorio-inclusao-digital',
         'urls': {
             2024: {
-                'dados-pcd': 'https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/dados_pcd/Territorios.desenvolvimento_PCD_TEA.xlsx'
+                'dados-pcd': 'https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/dados_pcd/Territorios.desenvolvimento_PCD_TEA.xlsx',
+                'dados-pcd-br-ne': 'https://github.com/mvaldecy/observatorio-inclusao-digital/releases/download/pcd/tabela10126.xlsx'
             }
         }
     }
