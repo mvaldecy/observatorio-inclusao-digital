@@ -644,6 +644,17 @@ class HTTPDataLoader:
         ano_dir.mkdir(parents=True, exist_ok=True)
         
         parquet_path = ano_dir / f"{tipo}.parquet"
+        ANO_BASE_PCD = 2022
+
+        def _forcar_ano_base_pcd(df_in: pd.DataFrame) -> pd.DataFrame:
+            """Garante consistência do ano-base real dos dados PCD (2022)."""
+            if 'ANO' in df_in.columns:
+                df_in['ANO'] = ANO_BASE_PCD
+            elif 'ano' in df_in.columns:
+                df_in['ano'] = ANO_BASE_PCD
+            else:
+                df_in['ANO'] = ANO_BASE_PCD
+            return df_in
 
         def _normalizar_municipio(valor):
             if pd.isna(valor):
@@ -834,7 +845,7 @@ class HTTPDataLoader:
                         'total_pessoas_2_mais': float(total),
                         'pessoas_com_deficiencia_2_mais': float(com_def),
                         'pessoas_sem_deficiencia_2_mais': float(total - com_def),
-                        'ano': ano,
+                        'ano': ANO_BASE_PCD,
                     })
 
                 if not registros:
@@ -872,6 +883,7 @@ class HTTPDataLoader:
                             qtd_municipios = int(df['municipio'].nunique())
 
                         if qtd_municipios >= 50:
+                            df = _forcar_ano_base_pcd(df)
                             return df, None
 
                 elif tipo == 'dados-pcd-br-ne':
@@ -880,16 +892,23 @@ class HTTPDataLoader:
                         'PESSOAS_COM_DEFICIENCIA_2_MAIS'
                     }
                     if colunas_agregadas.issubset(colunas_df):
+                        df = _forcar_ano_base_pcd(df)
                         return df, None
             except Exception as e:
                 _log_error(f"❌ Erro ao carregar Parquet: {str(e)}")
                 return None, None
 
-        # Busca URL
+        # Busca URL: para PCD, pode haver chave de ano diferente do ano-base real do conteúdo.
         url = None
         if ano in self.urls and tipo in self.urls[ano]:
             url = self.urls[ano][tipo]
-        
+        else:
+            # Fallback para qualquer entrada configurada que contenha o tipo solicitado.
+            for _, tipos_config in self.urls.items():
+                if isinstance(tipos_config, dict) and tipo in tipos_config:
+                    url = tipos_config[tipo]
+                    break
+
         if not url:
             _log_error(f"❌ URL não encontrada para PCD/{ano}/{tipo}")
             return None, None
@@ -969,7 +988,7 @@ class HTTPDataLoader:
             df['uf'] = 'PI'
             df['estado'] = 'Piauí'
             df['regiao'] = 'Nordeste'
-            df['ano'] = ano
+            df['ano'] = ANO_BASE_PCD
             
             # Calcula população total por raça/cor
             df['populacao_total'] = (
@@ -1139,6 +1158,7 @@ class HTTPDataLoader:
             # Limpa e otimiza o DataFrame
             df = self._limpar_colunas(df)
             df = self._preparar_dataframe(df, aplicar_categorizacao=True)
+            df = _forcar_ano_base_pcd(df)
 
             # Salva como parquet
             df.to_parquet(parquet_path, compression='snappy', engine='pyarrow')
@@ -1154,6 +1174,7 @@ class HTTPDataLoader:
                 try:
                     df_fallback = self._limpar_colunas(df_fallback)
                     df_fallback = self._preparar_dataframe(df_fallback, aplicar_categorizacao=True)
+                    df_fallback = _forcar_ano_base_pcd(df_fallback)
                     df_fallback.to_parquet(parquet_path, compression='snappy', engine='pyarrow')
                     print(f"Dados PCD processados (agregado Brasil/Nordeste): {len(df_fallback)} registros")
                     return df_fallback, None

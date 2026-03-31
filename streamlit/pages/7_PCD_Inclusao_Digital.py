@@ -178,7 +178,18 @@ if not anos_disponiveis:
     st.error("❌ Nenhum dado PCD disponível")
     st.stop()
 
-ano_selecionado = st.sidebar.selectbox("📅 Ano", anos_disponiveis, index=0)
+# Força 2022 como primeira opção visível no filtro.
+anos_ordenados = [ano for ano in anos_disponiveis if str(ano) != '2022']
+anos_ordenados.insert(0, 2022)
+
+ano_padrao = 2022
+st.session_state["pcd_ano_filtro_default_2022"] = ano_padrao
+ano_selecionado = st.sidebar.selectbox(
+    "📅 Ano",
+    anos_ordenados,
+    index=0,
+    key="pcd_ano_filtro_default_2022"
+)
 
 try:
     with st.spinner('🔄 Carregando base PCD...'):
@@ -289,25 +300,6 @@ else:
     fig_comp.update_yaxes(title='Percentual (%)')
     st.plotly_chart(fig_comp, use_container_width=True)
 
-    df_comp_exibir = df_comp.copy()
-    df_comp_exibir['Total 2+'] = df_comp_exibir['Total 2+'].round(0)
-    df_comp_exibir['Com deficiência (2+)'] = df_comp_exibir['Com deficiência (2+)'].round(0)
-
-    if modo_visualizacao == 'Número de pessoas':
-        st.dataframe(
-            df_comp_exibir[['Recorte', 'Total 2+', 'Com deficiência (2+)']],
-            use_container_width=True,
-            hide_index=True
-        )
-    elif modo_visualizacao == 'Percentual (%)':
-        st.dataframe(
-            df_comp_exibir[['Recorte', 'Percentual (%)']],
-            use_container_width=True,
-            hide_index=True
-        )
-    else:
-        st.dataframe(df_comp_exibir, use_container_width=True, hide_index=True)
-
 st.markdown("---")
 
 
@@ -400,14 +392,6 @@ with tab1:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    if modo_visualizacao == 'Número de pessoas':
-        st.dataframe(comparativo[['Grupo', 'Quantidade']], use_container_width=True, hide_index=True)
-    elif modo_visualizacao == 'Percentual (%)':
-        st.dataframe(comparativo[['Grupo', 'Percentual']], use_container_width=True, hide_index=True)
-    else:
-        st.dataframe(comparativo, use_container_width=True, hide_index=True)
-
-
 with tab2:
     st.markdown("### 📊 Perfil da deficiência")
 
@@ -425,12 +409,6 @@ with tab2:
             titulo='Pessoas com deficiência por idade',
             y_label='Valor'
         )
-        if modo_visualizacao == 'Número de pessoas':
-            st.dataframe(df_idade[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
-        elif modo_visualizacao == 'Percentual (%)':
-            st.dataframe(df_idade[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
-        else:
-            st.dataframe(df_idade, use_container_width=True, hide_index=True)
     else:
         st.info("Sem dados de idade para os filtros selecionados.")
 
@@ -447,12 +425,6 @@ with tab2:
         }), com_def)
         if not df_cor_pcd.empty:
             exibir_grafico_barras(df_cor_pcd, 'Categoria', modo_visualizacao, 'PCD por cor/raça')
-            if modo_visualizacao == 'Número de pessoas':
-                st.dataframe(df_cor_pcd[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
-            elif modo_visualizacao == 'Percentual (%)':
-                st.dataframe(df_cor_pcd[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
-            else:
-                st.dataframe(df_cor_pcd, use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de cor/raça para deficiência.")
 
@@ -466,12 +438,6 @@ with tab2:
             valor_pizza = 'Percentual' if modo_visualizacao == 'Percentual (%)' else 'Quantidade'
             fig = px.pie(df_qtd_dif, names='Categoria', values=valor_pizza, title='1 dificuldade vs 2+')
             st.plotly_chart(fig, use_container_width=True)
-            if modo_visualizacao == 'Número de pessoas':
-                st.dataframe(df_qtd_dif[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
-            elif modo_visualizacao == 'Percentual (%)':
-                st.dataframe(df_qtd_dif[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
-            else:
-                st.dataframe(df_qtd_dif, use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de quantidade de dificuldades.")
 
@@ -485,12 +451,6 @@ with tab2:
     }), com_def)
     if not df_tipos_dif.empty:
         exibir_grafico_barras(df_tipos_dif, 'Categoria', modo_visualizacao, 'Tipos de dificuldades e quantidade')
-        if modo_visualizacao == 'Número de pessoas':
-            st.dataframe(df_tipos_dif[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
-        elif modo_visualizacao == 'Percentual (%)':
-            st.dataframe(df_tipos_dif[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
-        else:
-            st.dataframe(df_tipos_dif, use_container_width=True, hide_index=True)
     else:
         st.info("Sem dados de tipos de dificuldades.")
 
@@ -530,12 +490,6 @@ with tab3:
         }), com_def)
         if not df_instr.empty:
             exibir_grafico_barras(df_instr, 'Categoria', modo_visualizacao, 'Nível de instrução - pessoas com deficiência')
-            if modo_visualizacao == 'Número de pessoas':
-                st.dataframe(df_instr[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
-            elif modo_visualizacao == 'Percentual (%)':
-                st.dataframe(df_instr[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
-            else:
-                st.dataframe(df_instr, use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de instrução para pessoas com deficiência.")
 
@@ -565,12 +519,6 @@ with tab4:
         }), autismo_diag)
         if not df_aut_cor.empty:
             exibir_grafico_barras(df_aut_cor, 'Categoria', modo_visualizacao, 'Autismo por cor/raça')
-            if modo_visualizacao == 'Número de pessoas':
-                st.dataframe(df_aut_cor[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
-            elif modo_visualizacao == 'Percentual (%)':
-                st.dataframe(df_aut_cor[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
-            else:
-                st.dataframe(df_aut_cor, use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de autismo por cor/raça.")
 
@@ -596,12 +544,6 @@ with tab4:
                 fig = px.bar(df_sexo, x='Sexo', y='Valor', text='Valor', title='Comparativo homens x mulheres')
                 fig.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
             st.plotly_chart(fig, use_container_width=True)
-            if modo_visualizacao == 'Número de pessoas':
-                st.dataframe(df_sexo[['Sexo', 'Valor']], use_container_width=True, hide_index=True)
-            elif modo_visualizacao == 'Percentual (%)':
-                st.dataframe(df_sexo[['Sexo', 'Percentual']], use_container_width=True, hide_index=True)
-            else:
-                st.dataframe(df_sexo[['Sexo', 'Valor', 'Percentual']], use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de homens x mulheres para autismo.")
 
@@ -615,12 +557,6 @@ with tab4:
         }), autismo_diag)
         if not df_aut_25.empty:
             exibir_grafico_barras(df_aut_25, 'Categoria', modo_visualizacao, 'Autismo (25+) por instrução')
-            if modo_visualizacao == 'Número de pessoas':
-                st.dataframe(df_aut_25[['Categoria', 'Quantidade']], use_container_width=True, hide_index=True)
-            elif modo_visualizacao == 'Percentual (%)':
-                st.dataframe(df_aut_25[['Categoria', 'Percentual']], use_container_width=True, hide_index=True)
-            else:
-                st.dataframe(df_aut_25, use_container_width=True, hide_index=True)
         else:
             st.info("Sem dados de autismo (25+) por instrução.")
 
@@ -640,12 +576,6 @@ with tab4:
     )
     st.plotly_chart(fig, use_container_width=True)
     dom_df['Percentual'] = [100.0 if dom_total > 0 else 0.0, perc_dom_autismo]
-    if modo_visualizacao == 'Número de pessoas':
-        st.dataframe(dom_df[['Indicador', 'Quantidade']], use_container_width=True, hide_index=True)
-    elif modo_visualizacao == 'Percentual (%)':
-        st.dataframe(dom_df[['Indicador', 'Percentual']], use_container_width=True, hide_index=True)
-    else:
-        st.dataframe(dom_df, use_container_width=True, hide_index=True)
 
 
 # ============================================================================
