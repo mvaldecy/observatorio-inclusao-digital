@@ -173,4 +173,4 @@ def _renderizar_grafico_comparativo(stats_brasil: dict, stats_nordeste: dict, st
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     
-    st.plotly_chart(fig_comp, use_container_width=True, key="comp_brasil_ne_pi")
+    st.plotly_chart(fig_comp, width='stretch', key="comp_brasil_ne_pi")

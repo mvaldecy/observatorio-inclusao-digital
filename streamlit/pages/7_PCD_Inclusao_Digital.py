@@ -104,7 +104,7 @@ def exibir_grafico_barras(df_plot: pd.DataFrame, x_col: str, modo: str, titulo: 
     fig.update_traces(texttemplate=texttemplate, textposition='outside')
     if y_label:
         fig.update_yaxes(title=y_label)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 def montar_comparativo_territorial_pcd(
@@ -298,7 +298,7 @@ else:
     )
     fig_comp.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
     fig_comp.update_yaxes(title='Percentual (%)')
-    st.plotly_chart(fig_comp, use_container_width=True)
+    st.plotly_chart(fig_comp, width='stretch')
 
 st.markdown("---")
 
@@ -381,7 +381,7 @@ with tab1:
                 title='Pessoas com e sem deficiência (2+ anos)'
             )
             fig.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with c2:
         fig = px.pie(
@@ -390,7 +390,7 @@ with tab1:
             values='Percentual',
             title='Comparativo percentual: com vs sem deficiência'
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 with tab2:
     st.markdown("### 📊 Perfil da deficiência")
@@ -437,7 +437,7 @@ with tab2:
         if not df_qtd_dif.empty:
             valor_pizza = 'Percentual' if modo_visualizacao == 'Percentual (%)' else 'Quantidade'
             fig = px.pie(df_qtd_dif, names='Categoria', values=valor_pizza, title='1 dificuldade vs 2+')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info("Sem dados de quantidade de dificuldades.")
 
@@ -476,7 +476,7 @@ with tab3:
         df_analf = df_analf[df_analf['Taxa (%)'] > 0]
         if not df_analf.empty:
             fig = px.bar(df_analf, x='Cor/Raça', y='Taxa (%)', title='Taxa média de analfabetismo')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info("Sem dados de taxa de analfabetismo por cor/raça.")
 
@@ -506,7 +506,7 @@ with tab4:
             'Quantidade': [pop_residente, autismo_diag]
         })
         fig = px.bar(autismo_df, x='Indicador', y='Quantidade', title=f'Taxa estimada de autismo: {perc_autismo:.2f}%')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with c2:
         st.markdown("#### Pessoas com autismo por cor/raça")
@@ -543,7 +543,7 @@ with tab4:
             else:
                 fig = px.bar(df_sexo, x='Sexo', y='Valor', text='Valor', title='Comparativo homens x mulheres')
                 fig.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info("Sem dados de homens x mulheres para autismo.")
 
@@ -574,7 +574,7 @@ with tab4:
         y='Quantidade',
         title=f'Percentual de domicílios com morador autista: {perc_dom_autismo:.2f}%'
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     dom_df['Percentual'] = [100.0 if dom_total > 0 else 0.0, perc_dom_autismo]
 
 

@@ -121,14 +121,14 @@ ano_selecionado = st.sidebar.selectbox(
 col_btn1, col_btn2 = st.sidebar.columns(2)
 
 with col_btn1:
-    if st.button("🔄 Atualizar", help="Baixar nova versão dos dados", use_container_width=True):
+    if st.button("🔄 Atualizar", help="Baixar nova versão dos dados", width='stretch'):
         st.cache_data.clear()
         st.cache_resource.clear()
         loader.carregar_dados(ano_selecionado, 'individuos', force_download=True)
         st.rerun()
 
 with col_btn2:
-    if st.button("🗑️ Limpar Cache", help="Remover dados em cache", use_container_width=True):
+    if st.button("🗑️ Limpar Cache", help="Remover dados em cache", width='stretch'):
         loader.limpar_cache(ano_selecionado)
         st.cache_data.clear()
         st.cache_resource.clear()
@@ -479,7 +479,7 @@ if len(df_filtrado) > 0:
                 st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
 
                 with st.expander("📋 Ver Dados Completos"):
-                    st.dataframe(res_brasil, use_container_width=True)
+                    st.dataframe(res_brasil, width='stretch')
             else:
                 st.warning("Sem dados")
 
@@ -515,7 +515,7 @@ if len(df_filtrado) > 0:
                 st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
 
                 with st.expander("📋 Ver Dados Completos"):
-                    st.dataframe(res_nordeste, use_container_width=True)
+                    st.dataframe(res_nordeste, width='stretch')
             else:
                 st.warning("Sem dados")
 
@@ -553,7 +553,7 @@ if len(df_filtrado) > 0:
                     st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
 
                     with st.expander("📋 Ver Dados Completos"):
-                        st.dataframe(res_piaui, use_container_width=True)
+                        st.dataframe(res_piaui, width='stretch')
                 else:
                     st.warning("Sem dados")
 
@@ -598,7 +598,7 @@ if len(df_filtrado) > 0:
             df_pivot = df_comparativo.pivot(index='Categoria', columns='Região', values='Percentual')
 
             # Tabela comparativa (sempre visível)
-            st.dataframe(df_pivot, use_container_width=True)
+            st.dataframe(df_pivot, width='stretch')
 
             # Exportar comparativo
             st.markdown("---")
@@ -812,7 +812,7 @@ if len(df_filtrado) > 0:
                     aggfunc='first'
                 )
 
-                st.dataframe(df_pivot_tabela, use_container_width=True)
+                st.dataframe(df_pivot_tabela, width='stretch')
 
                 # Botão de download
                 st.markdown("---")
@@ -884,7 +884,7 @@ if len(df_filtrado) > 0:
 
             # Tabela formatada
             st.write("### 📊 Tabela Detalhada")
-            st.dataframe(res, use_container_width=True, height=300)
+            st.dataframe(res, width='stretch', height=300)
 
         with tab2:
             # Gráficos melhorados
@@ -933,7 +933,7 @@ if len(df_filtrado) > 0:
                 """)
 
             st.write("### 📋 Pré-visualização dos Dados")
-            st.dataframe(res, use_container_width=True)
+            st.dataframe(res, width='stretch')
 else:
     st.warning("⚠️ Nenhum dado encontrado para os filtros selecionados.")
     st.info("💡 **Dica:** Tente remover alguns filtros ou selecionar uma combinação diferente.")

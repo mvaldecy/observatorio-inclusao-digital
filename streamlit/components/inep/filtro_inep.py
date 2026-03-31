@@ -168,7 +168,7 @@ class FiltroINEP:
         st.sidebar.markdown("## 🔍 Filtros")
 
         # Botão para limpar filtros no topo
-        if st.sidebar.button("🗑️ Limpar Filtros", use_container_width=True, key="limpar_filtros_inep"):
+        if st.sidebar.button("🗑️ Limpar Filtros", width='stretch', key="limpar_filtros_inep"):
             # Incrementar contador para resetar todos os widgets
             st.session_state.filtro_inep_reset_counter += 1
 
