@@ -152,7 +152,7 @@ class AnalisadorIndividuosCETIC:
         
         resumo = []
         for val, count in counts.items():
-            label = labels_valores.get(val, str(val))
+            label = labels_valores.get(val, str(int(val)) if val == int(val) else str(val))
             percent = (count / total) * 100 if total > 0 else 0
             resumo.append({
                 'Descrição': label,
@@ -231,7 +231,7 @@ class AnalisadorIndividuosCETIC:
         for valor_agregador in sorted(df[campo_agregador].unique()):
             # Filtrar dados para este valor
             df_grupo = df[df[campo_agregador] == valor_agregador]
-            label_valor_agregador = map_agregador.get(valor_agregador, str(valor_agregador))
+            label_valor_agregador = map_agregador.get(valor_agregador, str(int(valor_agregador)) if valor_agregador == int(valor_agregador) else str(valor_agregador))
 
             # Analisar cada campo
             for campo in campos:
@@ -248,7 +248,7 @@ class AnalisadorIndividuosCETIC:
                 total_grupo = len(df_grupo_valido)
 
                 for valor_campo, count in contagens.items():
-                    label_valor_campo = map_campo.get(valor_campo, str(valor_campo))
+                    label_valor_campo = map_campo.get(valor_campo, str(int(valor_campo)) if valor_campo == int(valor_campo) else str(valor_campo))
                     percentual = (count / total_grupo * 100) if total_grupo > 0 else 0
 
                     resultado = {
