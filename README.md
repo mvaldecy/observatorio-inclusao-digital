@@ -4,17 +4,39 @@ Aplicação de análise e visualização dos dados da pesquisa TIC (Tecnologias 
 
 ## 🚀 Deploy
 
-### Streamlit Cloud
+### Opção 1 – Docker (recomendado para datasets grandes)
 
-Esta aplicação está configurada para deploy no Streamlit Cloud. Os arquivos necessários são:
+A forma mais confiável de rodar o app em produção é via Docker, pois os datasets são grandes e o Streamlit Cloud gratuito pode não ter memória suficiente.
 
-- `requirements.txt` - Dependências Python
-- `packages.txt` - Dependências do sistema (necessário para pyreadstat)
-- `.streamlit/config.toml` - Configurações da aplicação
+```bash
+# Build e start com docker-compose (inclui volume persistente para o cache)
+docker-compose up -d
+
+# Acesse em http://localhost:8501
+```
+
+### Opção 2 – Render.com (plataforma cloud com Docker)
+
+1. Faça fork/push deste repositório para o GitHub
+2. Crie uma conta em [render.com](https://render.com)
+3. Clique em **New → Blueprint** e aponte para este repositório
+4. O Render lerá o arquivo `render.yaml` e provisionará o serviço automaticamente
+5. ⚠️ Escolha o plano **Standard (2 GB RAM)** para datasets grandes
+
+### Opção 3 – Streamlit Cloud
+
+Esta aplicação também pode ser implantada no Streamlit Cloud. Os arquivos necessários já estão configurados:
+
+- `requirements.txt` – Dependências Python
+- `packages.txt` – Dependências do sistema (necessário para pyreadstat)
+- `.streamlit/config.toml` – Configurações do servidor
+
+> **Atenção:** O plano gratuito do Streamlit Cloud tem limite de 1 GB de RAM. Com datasets grandes (arquivos CETIC .sav com centenas de MB), o app pode ser encerrado por falta de memória. Considere o Docker ou Render.com para maior estabilidade.
 
 ### Requisitos
 
-- Python 3.8+
+- Python 3.11+
+- Docker (para deploy em container)
 - Dependências listadas em `requirements.txt`
 
 ## 📦 Instalação Local
@@ -50,19 +72,23 @@ observatorio-inclusao-digital/
 │   ├── domicilios/        # Análise de domicílios
 │   └── individuos/        # Análise de indivíduos
 ├── data/                  # Dados e cache
-│   └── cache/             # Cache HTTP dos dados
+│   └── cache/             # Cache dos dados (parquet)
+├── Dockerfile             # Imagem Docker para deploy
+├── docker-compose.yml     # Orquestração local/produção
+├── render.yaml            # Deploy no Render.com
 ├── requirements.txt       # Dependências Python
-├── packages.txt          # Dependências do sistema
-└── .streamlit/           # Configurações Streamlit
+├── packages.txt           # Dependências do sistema
+└── .streamlit/            # Configurações Streamlit
     └── config.toml
 ```
 
 ## 🌐 Cache de Dados
 
-A aplicação utiliza um sistema de cache HTTP para baixar e armazenar localmente os dados do CETIC.br:
+A aplicação utiliza um sistema de cache para baixar e armazenar localmente os dados:
 
-- **Primeira execução**: Download automático dos dados
-- **Execuções seguintes**: Uso do cache local em `data/cache/`
+- **Primeira execução**: Download automático dos dados (pode demorar alguns minutos)
+- **Execuções seguintes**: Dados lidos do cache Parquet local em `data/cache/` (muito mais rápido)
+- **Formato Parquet**: Após o primeiro download, os dados são convertidos de `.sav`/`.csv` para Parquet com compressão Snappy, reduzindo drasticamente o uso de memória e o tempo de leitura
 - **Atualização**: Botão "🔄 Atualizar" força novo download
 - **Limpeza**: Botão "🗑️ Limpar Cache" remove dados locais
 

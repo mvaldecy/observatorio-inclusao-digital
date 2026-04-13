@@ -19,10 +19,10 @@ def _log_error(mensagem: str):
     """
     try:
         if hasattr(st, 'error'):
-            _log_error(mensagem)
+            st.error(mensagem)
         else:
             print(mensagem)
-    except:
+    except Exception:
         print(mensagem)
 
 
@@ -105,11 +105,11 @@ class HTTPDataLoader:
             True se sucesso, False caso contrário
         """
         try:
-            response = requests.get(url, stream=True, timeout=30)
+            response = requests.get(url, stream=True, timeout=120)
             response.raise_for_status()
 
             with open(destino, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
+                for chunk in response.iter_content(chunk_size=65536):
                     if chunk:
                         f.write(chunk)
 
@@ -516,7 +516,8 @@ class HTTPDataLoader:
 
     def _carregar_cetic(self, ano: any, tipo: str, force_download: bool = False) -> Optional[Tuple[pd.DataFrame, any]]:
         """
-        Carrega dados do CETIC (arquivos SPSS .sav)
+        Carrega dados do CETIC (arquivos SPSS .sav), com cache em Parquet para
+        leituras subsequentes mais rápidas e com menor uso de memória.
 
         Args:
             ano: Ano dos dados
@@ -526,18 +527,46 @@ class HTTPDataLoader:
         Returns:
             Tupla (DataFrame, metadados) ou None se erro
         """
-        cache_path = self._get_cache_path(ano, tipo)
-        url = self.urls[ano][tipo]
+        fonte_dir = self.cache_dir / self.fonte / str(ano)
+        fonte_dir.mkdir(parents=True, exist_ok=True)
 
-        if not cache_path.exists() or force_download:
-            if not self._download_file(url, cache_path):
+        parquet_path = fonte_dir / f"{tipo}.parquet"
+        sav_path = fonte_dir / f"{tipo}.sav"
+
+        # Se existe Parquet em cache e não forçou download, carrega direto (muito mais rápido)
+        if parquet_path.exists() and not force_download:
+            try:
+                df = pd.read_parquet(str(parquet_path))
+                return df, None
+            except Exception as e:
+                _log_error(f"❌ Erro ao carregar Parquet do CETIC: {str(e)}")
+                # Apaga o parquet corrompido e prossegue para re-download
+                parquet_path.unlink(missing_ok=True)
+
+        # Faz o download do SAV se não existir ou se forçado
+        url = self.urls[ano][tipo]
+        if not sav_path.exists() or force_download:
+            if not self._download_file(url, sav_path):
                 return None, None
 
         try:
-            df, meta = pyreadstat.read_sav(str(cache_path))
+            df, meta = pyreadstat.read_sav(str(sav_path))
+
+            # Otimiza tipos de dados antes de salvar
+            df = self._preparar_dataframe(df, aplicar_categorizacao=True)
+
+            # Salva como Parquet para leituras futuras (muito mais rápido e menor)
+            df.to_parquet(str(parquet_path), compression='snappy', engine='pyarrow')
+
+            # Remove o SAV original para liberar espaço em disco
+            try:
+                sav_path.unlink()
+            except Exception:
+                pass
+
             return df, meta
         except Exception as e:
-            _log_error(f"❌ Erro ao processar arquivo SAV {cache_path.name}: {str(e)}")
+            _log_error(f"❌ Erro ao processar arquivo SAV {sav_path.name}: {str(e)}")
             return None, None
 
     # =============================================================================
@@ -590,7 +619,7 @@ class HTTPDataLoader:
 
         # Baixa o arquivo CSV em memória (não salva em disco ainda)
         try:
-            response = requests.get(url, stream=True, timeout=30)
+            response = requests.get(url, stream=True, timeout=120)
             response.raise_for_status()
             csv_content = response.text
         except Exception as e:
