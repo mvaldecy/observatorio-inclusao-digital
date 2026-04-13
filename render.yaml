@@ -6,7 +6,7 @@ services:
     name: observatorio-inclusao-digital
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter          # starter = 512 MB RAM; standard = 2 GB RAM (recomendado para datasets grandes)
+    plan: standard         # standard = 2 GB RAM (recomendado para datasets grandes; starter tem apenas 512 MB)
     region: ohio           # Mais próximo do Brasil com baixa latência
     healthCheckPath: /_stcore/health
     autoDeploy: true

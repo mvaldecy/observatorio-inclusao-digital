@@ -561,7 +561,7 @@ class HTTPDataLoader:
             # Remove o SAV original para liberar espaço em disco
             try:
                 sav_path.unlink()
-            except Exception:
+            except (FileNotFoundError, PermissionError):
                 pass
 
             return df, meta
