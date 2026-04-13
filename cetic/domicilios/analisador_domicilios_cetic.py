@@ -4,8 +4,12 @@ try:
     from cetic.domicilios.metadados import Metadados
 except ImportError:
     from metadados import Metadados
- # ignore
+
 class AnalisadorDomiciliosCETIC:
+    # Códigos especiais que representam respostas não válidas para análise estatística:
+    # 97 = Não sabe, 98 = Não respondeu, 99 = Não se aplica, 999999999 = Não se aplica (campos de quantidade)
+    _CODIGOS_SISTEMA = {97.0, 98.0, 99.0, 999999999.0}
+
     def __init__(self, data_path=None, ano: int = 2025, df=None, meta=None):
         """
         Inicializa o analisador de domicílios CETIC
@@ -73,17 +77,20 @@ class AnalisadorDomiciliosCETIC:
     def filtrar_dados(self, *args, **kwargs):
         """
         Filtra os dados usando args (objetos de Metadados) ou kwargs.
-        Exemplo: app.filtrar_dados(Metadados.COD_UF.PIAUI, AREA=Metadados.AREA.RURAL)
+        Retorna uma cópia filtrada sem modificar o DataFrame original.
+        Exemplo: df = app.filtrar_dados(Metadados.COD_UF.PIAUI, AREA=Metadados.AREA.RURAL)
         """
-        if self.df.empty:
-            return self.df
+        df = self.df.copy()
+
+        if df.empty:
+            return df
 
         # Processa args (ex: Metadados.COD_UF.PIAUI)
         for arg in args:
             if hasattr(arg, 'column'):
                 col = arg.column
-                if col in self.df.columns:
-                    self.df = self.df[self.df[col] == arg]
+                if col in df.columns:
+                    df = df[df[col] == arg]
                 else:
                     print(f"Aviso: Coluna '{col}' (de {arg}) não encontrada no DataFrame.")
             else:
@@ -91,52 +98,41 @@ class AnalisadorDomiciliosCETIC:
 
         # Processa kwargs (ex: AREA=Metadados.AREA.RURAL)
         for col, value in kwargs.items():
-            if col in self.df.columns:
+            if col in df.columns:
                 if isinstance(value, list):
-                    self.df = self.df[self.df[col].isin(value)]
+                    df = df[df[col].isin(value)]
                 else:
-                    self.df = self.df[self.df[col] == value]
+                    df = df[df[col] == value]
             else:
                 print(f"Aviso: Coluna '{col}' não encontrada no DataFrame.")
-        # print(pd.DataFrame(self.df))
-        print(f"Filtro aplicado. Registros encontrados: {len(self.df)}")
-        return self.df
+        print(f"Filtro aplicado. Registros encontrados: {len(df)}")
+        return df
 
     def analisar_indicador(self, indicador, df_contexto=None):
         """
         Analisa um indicador específico.
-        Se df_contexto for passado, usa ele; senão usa o df principal (auto-filtrado).
+        Se df_contexto for passado, usa ele; senão usa o df principal.
+        Códigos de sistema (97=Não sabe, 98=Não respondeu, 99=Não se aplica,
+        999999999=Não se aplica) são excluídos do denominador para que os
+        percentuais reflitam apenas as respostas válidas.
         """
         df = df_contexto if df_contexto is not None else self.df
         
         if df.empty:
             return None
 
-        # FILTRAR "Não se aplica" (99.0) de TODAS as colunas relevantes no DataFrame
-        # Isso garante que independente dos filtros aplicados antes, nunca contaremos 99.0
-        # if isinstance(indicador, list):
-        #     # Para análise múltipla, filtrar 99.0 de cada indicador da lista
-        #     for ind in indicador:
-        #         if ind in df.columns:
-        #             df = df[df[ind] != 99.0]
-        # else:
-        #     # Para análise simples, filtrar 99.0 do indicador específico
-        #     if indicador in df.columns:
-        #         df = df[df[indicador] != 99.0]
-        #
-        # if df.empty:
-        #     print(f"Aviso: Todos os valores são 'Não se aplica' após filtragem.")
-        #     return None
-
         if isinstance(indicador, list):
-            # Análise múltipla
+            # Análise múltipla: para cada indicador, exclui seus próprios códigos de sistema
             resumo = []
             for ind in indicador:
+                if ind not in df.columns:
+                    continue
                 meta_col = getattr(Metadados, ind, None)
                 label_col = getattr(meta_col, '_label', ind) if meta_col else ind
-                
-                sim_count = (df[ind] == 1.0).sum()
-                total = len(df)  # Total JÁ sem "Não se aplica"
+
+                df_valido = df[~df[ind].isin(self._CODIGOS_SISTEMA)]
+                sim_count = (df_valido[ind] == 1.0).sum()
+                total = len(df_valido)
                 percent = (sim_count / total) * 100 if total > 0 else 0
                 
                 resumo.append({
@@ -151,9 +147,10 @@ class AnalisadorDomiciliosCETIC:
             print(f"Erro: Indicador '{indicador}' não encontrado.")
             return None
 
-        # Contagem de valores (já filtrado 99.0 acima)
-        counts = df[indicador].value_counts().sort_index()
-        total = len(df)  # Total JÁ sem "Não se aplica"
+        # Exclui códigos de sistema do denominador para percentuais corretos
+        df_valido = df[~df[indicador].isin(self._CODIGOS_SISTEMA)]
+        counts = df_valido[indicador].value_counts().sort_index()
+        total = len(df_valido)
 
         # Obter metadados da coluna via classe Metadados
         meta_col = getattr(Metadados, indicador, None)
@@ -162,10 +159,7 @@ class AnalisadorDomiciliosCETIC:
         
         resumo = []
         for val, count in counts.items():
-            label = labels_valores.get(val, "Não categorizado")
-            # Pular "Não se aplica" se ainda aparecer
-            #if label.lower() == 'não se aplica':
-             #   continue
+            label = labels_valores.get(val, str(val))
             percent = (count / total) * 100 if total > 0 else 0
             resumo.append({
                 'Descrição': label,
@@ -178,17 +172,13 @@ class AnalisadorDomiciliosCETIC:
     def analisar_inclusao_digital(self, *args, **kwargs):
         """
         Realiza a filtragem e a análise do indicador de acesso à internet (A4) em uma única chamada.
-        Retorna apenas as porcentagens de Sim/Não.
+        Retorna apenas as porcentagens de Sim/Não sobre respostas válidas.
         """
-        # Aplica os filtros
-        self.filtrar_dados(*args, **kwargs)
+        df_filtrado = self.filtrar_dados(*args, **kwargs)
         
-        # Analisa o indicador A4 (Acesso à Internet)
-        res = self.analisar_indicador('A4')
+        res = self.analisar_indicador('A4', df_contexto=df_filtrado)
         
         if res is not None:
-            # Filtra apenas Sim e Não (ignorando 'Não sabe', etc, se houver, ou apenas formatando melhor)
-            # Geralmente 1.0 = Sim, 2.0 = Não
             return res[['Descrição', 'Percentual']]
         return "Nenhum dado encontrado para os filtros aplicados."
 
@@ -244,9 +234,10 @@ class AnalisadorDomiciliosCETIC:
                 label_campo = getattr(meta_campo, '_label', campo) if meta_campo else campo
                 map_campo = getattr(meta_campo, '_map', {}) if meta_campo else {}
 
-                # Contar valores
-                contagens = df_grupo[campo].value_counts()
-                total_grupo = len(df_grupo)
+                # Contar valores excluindo códigos de sistema
+                df_grupo_valido = df_grupo[~df_grupo[campo].isin(self._CODIGOS_SISTEMA)]
+                contagens = df_grupo_valido[campo].value_counts()
+                total_grupo = len(df_grupo_valido)
 
                 for valor_campo, count in contagens.items():
                     label_valor_campo = map_campo.get(valor_campo, str(valor_campo))
