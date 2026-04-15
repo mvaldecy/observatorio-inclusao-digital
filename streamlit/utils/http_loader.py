@@ -516,7 +516,10 @@ class HTTPDataLoader:
 
     def _carregar_cetic(self, ano: any, tipo: str, force_download: bool = False) -> Optional[Tuple[pd.DataFrame, any]]:
         """
-        Carrega dados do CETIC (arquivos SPSS .sav)
+        Carrega dados do CETIC (arquivos SPSS .sav), convertendo para Parquet no primeiro acesso.
+
+        Na primeira vez baixa o SAV, converte para Parquet (snappy) e salva.
+        Nas seguintes, carrega direto do Parquet (~10x mais rápido).
 
         Args:
             ano: Ano dos dados
@@ -524,20 +527,39 @@ class HTTPDataLoader:
             force_download: Forçar download mesmo se existir cache
 
         Returns:
-            Tupla (DataFrame, metadados) ou None se erro
+            Tupla (DataFrame, None) ou None se erro
         """
-        cache_path = self._get_cache_path(ano, tipo)
-        url = self.urls[ano][tipo]
+        fonte_dir = self.cache_dir / self.fonte / str(ano)
+        fonte_dir.mkdir(parents=True, exist_ok=True)
+        parquet_path = fonte_dir / f"{tipo}.parquet"
+        sav_path = fonte_dir / f"{tipo}.sav"
 
-        if not cache_path.exists() or force_download:
-            if not self._download_file(url, cache_path):
+        # Carrega do Parquet se existir (caminho rápido)
+        if parquet_path.exists() and not force_download:
+            try:
+                df = pd.read_parquet(str(parquet_path))
+                return df, None
+            except Exception as e:
+                _log_error(f"❌ Erro ao carregar Parquet CETIC: {str(e)}")
+                # Apaga parquet corrompido e tenta recriar
+                parquet_path.unlink(missing_ok=True)
+
+        # Garante que o SAV existe (baixa se necessário)
+        url = self.urls[ano][tipo]
+        if not sav_path.exists() or force_download:
+            if not self._download_file(url, sav_path):
                 return None, None
 
+        # Converte SAV → Parquet
         try:
-            df, meta = pyreadstat.read_sav(str(cache_path))
-            return df, meta
+            df, meta = pyreadstat.read_sav(str(sav_path))
+            df = self._preparar_dataframe(df, aplicar_categorizacao=True)
+            df.to_parquet(str(parquet_path), compression='snappy', engine='pyarrow')
+            # Remove SAV após conversão bem-sucedida para liberar espaço
+            sav_path.unlink(missing_ok=True)
+            return df, None
         except Exception as e:
-            _log_error(f"❌ Erro ao processar arquivo SAV {cache_path.name}: {str(e)}")
+            _log_error(f"❌ Erro ao processar arquivo CETIC {tipo}/{ano}: {str(e)}")
             return None, None
 
     # =============================================================================

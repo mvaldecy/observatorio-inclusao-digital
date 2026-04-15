@@ -53,7 +53,7 @@ class ComparativoGeografico:
         resultados = {}
 
         # Brasil
-        df_brasil = self.analisador.df.copy()
+        df_brasil = self.analisador.df
         if filtros_extras:
             for f in filtros_extras:
                 if f is not None and f.column in df_brasil.columns:
@@ -64,7 +64,7 @@ class ComparativoGeografico:
         }
 
         # Nordeste
-        df_nordeste = self.analisador.df.copy()
+        df_nordeste = self.analisador.df
         if 'COD_REGIAO_2' in df_nordeste.columns:
             df_nordeste = df_nordeste[
                 df_nordeste['COD_REGIAO_2'] == self.meta_class.COD_REGIAO_2.NORDESTE
@@ -80,8 +80,7 @@ class ComparativoGeografico:
 
         # Piauí (se disponível)
         if tem_cod_uf:
-            df_piaui = self.analisador.df.copy()
-            df_piaui = df_piaui[df_piaui['COD_UF'] == self.meta_class.COD_UF.PIAUI]
+            df_piaui = self.analisador.df[self.analisador.df['COD_UF'] == self.meta_class.COD_UF.PIAUI]
             if filtros_extras:
                 for f in filtros_extras:
                     if f is not None and f.column in df_piaui.columns:

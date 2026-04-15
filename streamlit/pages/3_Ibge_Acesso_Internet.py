@@ -22,6 +22,7 @@ for p in [root_path, streamlit_path]:
         sys.path.append(p)
 
 from utils.data_loader import get_analisador_tabela7336
+from components.header import inject_global_css
 
 # ============================================================================
 # FUNÇÕES AUXILIARES
@@ -120,90 +121,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS customizado para remover bordas laranja/vermelhas e melhorar estética
-st.markdown("""
-<style>
-    /* Remove todas as bordas laranja/vermelhas de labels, headers e títulos */
-    [data-testid="stSidebar"] h3,
-    [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h1,
-    [data-testid="stSidebar"] label,
-    label[data-baseweb="label"],
-    div[data-baseweb="label"] {
-        border: none !important;
-        outline: none !important;
-    }
-    
-    /* Remove bordas em elementos com classe de label */
-    .stSelectbox label,
-    .stMultiSelect label,
-    div[role="option"] {
-        border: none !important;
-        outline: none !important;
-    }
-    
-    /* Remove borda laranja de inputs e selects */
-    [data-baseweb="input"],
-    [data-baseweb="select"],
-    [data-baseweb="combobox"],
-    div[role="listbox"],
-    div[data-baseweb="select"] {
-        border: 1px solid #ccc !important;
-        border-radius: 4px !important;
-        outline: none !important;
-    }
-    
-    /* Remove overlay/borda laranja no focus */
-    [data-baseweb="input"]:focus,
-    [data-baseweb="select"]:focus,
-    [data-baseweb="combobox"]:focus,
-    input:focus {
-        border-color: #0d58ca !important;
-        box-shadow: 0 0 0 1px #0d58ca !important;
-        outline: none !important;
-    }
-    
-    /* Remove bordas de modal/dropdown */
-    div[style*="background"] > div[role="listbox"] {
-        border: 1px solid #ccc !important;
-        outline: none !important;
-    }
-    
-    /* Melhora multiselect appearance */
-    div[data-testid="stMultiSelect"] span {
-        color: #262730 !important;
-        border: none !important;
-    }
-    
-    /* Melhora elementos de input */
-    input {
-        border: 1px solid #ccc !important;
-        border-radius: 4px !important;
-        outline: none !important;
-    }
-    
-    /* Remove qualquer borda vermelha de erro */
-    input:invalid {
-        border-color: #ccc !important;
-        box-shadow: none !important;
-        outline: none !important;
-    }
-    
-    /* Remove bordas em elementos do sidebar */
-    [data-testid="stSidebar"] div[data-baseweb] {
-        border: none !important;
-    }
-    
-    /* Remove cor de highlight laranja */
-    div[style*="rgb(255, 159, 64)"],
-    div[style*="#FF9F40"],
-    div[style*="#ffb3b3"],
-    div[style*="orange"] {
-        border: none !important;
-        box-shadow: none !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+inject_global_css()
 
 # ============================================================================
 # SIDEBAR - Configurações e Filtros

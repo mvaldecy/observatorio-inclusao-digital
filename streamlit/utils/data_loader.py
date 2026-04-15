@@ -30,6 +30,21 @@ except (ImportError, AttributeError):
 from .http_loader import HTTPDataLoader
 from .ibge_loader import IBGEDataLoader
 
+
+@cache_resource_decorator
+def get_http_loader(fonte: str = 'cetic') -> HTTPDataLoader:
+    """
+    Retorna uma instância singleton do HTTPDataLoader para a fonte informada.
+    Usar cache_resource evita recriar o objeto a cada rerun do Streamlit.
+
+    Args:
+        fonte: Fonte de dados ('cetic', 'anatel', 'ibge', 'pcd', etc.)
+
+    Returns:
+        Instância compartilhada do HTTPDataLoader
+    """
+    return HTTPDataLoader(fonte=fonte)
+
 from cetic.domicilios.analisador_domicilios_cetic import AnalisadorDomiciliosCETIC
 from cetic.individuos.analisador_individuos_cetic import AnalisadorIndividuosCETIC
 from anatel.analisador_anatel import AnalisadorAnatel
@@ -75,40 +90,36 @@ def carregar_dados_individuos_cetic(ano: int = 2025, force_download: bool = Fals
         return resultado
     return None, None
 
-@cache_decorator
+@cache_resource_decorator
 def get_analisador_domicilios(ano: int = 2025):
     """
     Retorna uma instância única do AnalisadorDomiciliosCETIC para um ano específico.
-    O uso de st.cache_resource garante que seja carregado apenas uma vez por ano.
+    O uso de st.cache_resource garante que o objeto seja mantido em memória sem serialização.
 
     Args:
         ano: Ano da pesquisa (default: 2025)
     """
-    # Carrega dados via HTTP
     df, meta = carregar_dados_domicilios_cetic(ano)
 
     if df is None:
         raise ValueError(f"Não foi possível carregar dados de {ano}")
 
-    # Cria analisador passando df e meta (evita importação circular)
     return AnalisadorDomiciliosCETIC(ano=ano, df=df, meta=meta)
 
-@cache_decorator
+@cache_resource_decorator
 def get_analisador_individuos(ano: int = 2025):
     """
     Retorna uma instância única do AnalisadorIndividuosCETIC para um ano específico.
-    O uso de st.cache_resource garante que seja carregado apenas uma vez por ano.
+    O uso de st.cache_resource garante que o objeto seja mantido em memória sem serialização.
 
     Args:
         ano: Ano da pesquisa (default: 2025)
     """
-    # Carrega dados via HTTP
     df, meta = carregar_dados_individuos_cetic(ano)
 
     if df is None:
         raise ValueError(f"Não foi possível carregar dados de {ano}")
 
-    # Cria analisador passando df e meta (evita importação circular)
     return AnalisadorIndividuosCETIC(ano=ano, df=df, meta=meta)
 
 
@@ -150,11 +161,11 @@ def carregar_conectividade_escola_anatel(ano: int, force_download: bool = False)
     return df
 
 
-@cache_decorator
+@cache_resource_decorator
 def get_analisador_anatel(ano: int = 2025, tipo: str = 'conectividade-escola'):
     """
     Retorna uma instância única do AnalisadorAnatel para um ano específico.
-    O uso de st.cache_resource garante que seja carregado apenas uma vez por ano.
+    O uso de st.cache_resource garante que o objeto seja mantido em memória sem serialização.
 
     Args:
         ano: Ano da pesquisa (default: 2025)
@@ -163,13 +174,11 @@ def get_analisador_anatel(ano: int = 2025, tipo: str = 'conectividade-escola'):
     Returns:
         AnalisadorAnatel configurado com os dados do ano
     """
-    # Carrega dados via HTTP
     df = carregar_conectividade_escola_anatel(ano)
 
     if df is None:
         raise ValueError(f"Não foi possível carregar dados da ANATEL de {ano}")
 
-    # Cria analisador passando df
     return AnalisadorAnatel(df=df, ano=ano)
 
 
@@ -213,11 +222,11 @@ def carregar_cobertura_movel_anatel(force_download: bool = False):
     return None
 
 
-@cache_decorator
+@cache_resource_decorator
 def get_analisador_cobertura_movel(force_download: bool = False):
     """
     Retorna uma instância única do AnalisadorCoberturaMovel.
-    O uso de st.cache_resource garante que seja carregado apenas uma vez.
+    O uso de st.cache_resource garante que o objeto seja mantido em memória sem serialização.
 
     Args:
         force_download: Forçar novo download mesmo se existir cache
@@ -225,13 +234,11 @@ def get_analisador_cobertura_movel(force_download: bool = False):
     Returns:
         AnalisadorCoberturaMovel configurado com os dados
     """
-    # Carrega dados via HTTP
     df = carregar_cobertura_movel_anatel(force_download)
 
     if df is None:
         raise ValueError("Não foi possível carregar dados de cobertura móvel da ANATEL")
 
-    # Cria analisador passando df
     return AnalisadorCoberturaMovel(df=df)
 
 
@@ -376,11 +383,11 @@ def carregar_dados_ibge_tabela7336(force_download: bool = False):
     return df
 
 
-@cache_decorator
+@cache_resource_decorator
 def get_analisador_tabela7336(force_download: bool = False):
     """
     Retorna uma instância única do AnalisadorTabela7336.
-    O uso de st.cache_resource garante que seja carregado apenas uma vez.
+    O uso de st.cache_resource garante que o objeto seja mantido em memória sem serialização.
 
     Args:
         force_download: Forçar novo download mesmo se existir cache
@@ -388,13 +395,11 @@ def get_analisador_tabela7336(force_download: bool = False):
     Returns:
         AnalisadorTabela7336 configurado com os dados
     """
-    # Carrega dados via loader específico do IBGE
     df = carregar_dados_ibge_tabela7336(force_download)
 
     if df is None:
         raise ValueError("Não foi possível carregar dados de acesso à Internet (Tabela 7336) do IBGE")
 
-    # Cria analisador passando df
     return AnalisadorTabela7336(df=df)
 
 
@@ -449,11 +454,11 @@ def carregar_dados_pcd_brasil_nordeste(ano: int = 2024, force_download: bool = F
     return None
 
 
-@cache_decorator
+@cache_resource_decorator
 def get_analisador_pcd(ano: int = 2024):
     """
     Retorna uma instância única do AnalisadorPCD.
-    O uso de st.cache_resource garante que seja carregado apenas uma vez por ano.
+    O uso de st.cache_resource garante que o objeto seja mantido em memória sem serialização.
 
     Args:
         ano: Ano dos dados (default: 2024)
@@ -461,13 +466,11 @@ def get_analisador_pcd(ano: int = 2024):
     Returns:
         AnalisadorPCD configurado com os dados
     """
-    # Carrega dados do cache local
     df = carregar_dados_pcd(ano)
 
     if df is None:
         raise ValueError(f"Não foi possível carregar dados PCD de {ano}")
 
-    # Cria analisador passando df
     return AnalisadorPCD(df=df, ano=ano)
 
 

@@ -10,104 +10,19 @@ for p in [root_path, streamlit_path]:
     if p not in sys.path:
         sys.path.append(p)
 
-from utils.data_loader import get_analisador_individuos
-from utils.http_loader import HTTPDataLoader
+from utils.data_loader import get_analisador_individuos, get_http_loader
 from cetic.individuos.metadados_individuos import MetadadosIndividuos
 from components.categorias_cetic import CATEGORIAS_INDIVIDUOS
-from components.header import render_header
+from components.header import render_header, inject_global_css
 
 st.set_page_config(page_title="Cetic Indivíduos", layout="wide")
-
-# CSS customizado para remover bordas laranja/vermelhas e melhorar estética
-st.markdown("""
-<style>
-    /* Remove todas as bordas laranja/vermelhas de labels, headers e títulos */
-    [data-testid="stSidebar"] h3,
-    [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h1,
-    [data-testid="stSidebar"] label,
-    label[data-baseweb="label"],
-    div[data-baseweb="label"] {
-        border: none !important;
-        outline: none !important;
-    }
-    
-    /* Remove bordas em elementos com classe de label */
-    .stSelectbox label,
-    .stMultiSelect label,
-    div[role="option"] {
-        border: none !important;
-        outline: none !important;
-    }
-    
-    /* Remove borda laranja de inputs e selects */
-    [data-baseweb="input"],
-    [data-baseweb="select"],
-    [data-baseweb="combobox"],
-    div[role="listbox"],
-    div[data-baseweb="select"] {
-        border: 1px solid #ccc !important;
-        border-radius: 4px !important;
-        outline: none !important;
-    }
-    
-    /* Remove overlay/borda laranja no focus */
-    [data-baseweb="input"]:focus,
-    [data-baseweb="select"]:focus,
-    [data-baseweb="combobox"]:focus,
-    input:focus {
-        border-color: #0d58ca !important;
-        box-shadow: 0 0 0 1px #0d58ca !important;
-        outline: none !important;
-    }
-    
-    /* Remove bordas de modal/dropdown */
-    div[style*="background"] > div[role="listbox"] {
-        border: 1px solid #ccc !important;
-        outline: none !important;
-    }
-    
-    /* Melhora multiselect appearance */
-    div[data-testid="stMultiSelect"] span {
-        color: #262730 !important;
-        border: none !important;
-    }
-    
-    /* Melhora elementos de input */
-    input {
-        border: 1px solid #ccc !important;
-        border-radius: 4px !important;
-        outline: none !important;
-    }
-    
-    /* Remove qualquer borda vermelha de erro */
-    input:invalid {
-        border-color: #ccc !important;
-        box-shadow: none !important;
-        outline: none !important;
-    }
-    
-    /* Remove bordas em elementos do sidebar */
-    [data-testid="stSidebar"] div[data-baseweb] {
-        border: none !important;
-    }
-    
-    /* Remove cor de highlight laranja */
-    div[style*="rgb(255, 159, 64)"],
-    div[style*="#FF9F40"],
-    div[style*="#ffb3b3"],
-    div[style*="orange"] {
-        border: none !important;
-        box-shadow: none !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+inject_global_css()
 
 # Configurações de Ano e Cache no Sidebar (antes dos filtros)
 st.sidebar.title("⚙️ Configurações")
 
 # Seletor de ano
-loader = HTTPDataLoader()
+loader = get_http_loader('cetic')
 anos_disponiveis = loader.get_anos_disponiveis('individuos')
 
 ano_selecionado = st.sidebar.selectbox(
@@ -341,9 +256,8 @@ if f_regiao: filtros.append(f_regiao)
 f_faixa = get_meta_value(MetadadosIndividuos.FAIXA_ETARIA, faixas_etarias, selected_faixa_label)
 if f_faixa: filtros.append(f_faixa)
 
-# Executar análise
-# Criamos uma cópia do dataframe para não afetar o original no analisador (que é cacheado)
-df_filtrado = analisador.df.copy()
+# Executar análise — boolean indexing cria novo objeto, não modifica analisador.df
+df_filtrado = analisador.df
 total_original = len(df_filtrado)
 
 # Aplicar os filtros
@@ -451,7 +365,7 @@ if len(df_filtrado) > 0:
         # BRASIL
         with col_brasil:
             st.markdown("#### 🇧🇷 Brasil")
-            df_brasil = analisador.df.copy()
+            df_brasil = analisador.df
             for f in filtros_comp:
                 col = f.column
                 df_brasil = df_brasil[df_brasil[col] == f]
@@ -486,8 +400,7 @@ if len(df_filtrado) > 0:
         # NORDESTE
         with col_nordeste:
             st.markdown("#### 🌴 Nordeste")
-            df_nordeste = analisador.df.copy()
-            df_nordeste = df_nordeste[df_nordeste['COD_REGIAO_2'] == MetadadosIndividuos.COD_REGIAO_2.NORDESTE]
+            df_nordeste = analisador.df[analisador.df['COD_REGIAO_2'] == MetadadosIndividuos.COD_REGIAO_2.NORDESTE]
             for f in filtros_comp:
                 col = f.column
                 df_nordeste = df_nordeste[df_nordeste[col] == f]
@@ -524,8 +437,7 @@ if len(df_filtrado) > 0:
         if tem_cod_uf:
             with col_piaui:
                 st.markdown("#### 🏛️ Piauí")
-                df_piaui = analisador.df.copy()
-                df_piaui = df_piaui[df_piaui['COD_UF'] == MetadadosIndividuos.COD_UF.PIAUI]
+                df_piaui = analisador.df[analisador.df['COD_UF'] == MetadadosIndividuos.COD_UF.PIAUI]
                 for f in filtros_comp:
                     col = f.column
                     df_piaui = df_piaui[df_piaui[col] == f]
@@ -707,7 +619,7 @@ if len(df_filtrado) > 0:
             campo_agregador, meta_agregador = agregadores_map[selected_agregador]
 
             # Criar análise agregada
-            df_trabalho = analisador.df.copy()
+            df_trabalho = analisador.df
 
             # Aplicar filtros da sidebar (exceto o próprio agregador)
             filtros_agg = []
