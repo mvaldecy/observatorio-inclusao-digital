@@ -6,6 +6,10 @@ except ImportError:
     from metadados_individuos import MetadadosIndividuos
 
 class AnalisadorIndividuosCETIC:
+    # Códigos especiais que representam respostas não válidas para análise estatística:
+    # 97 = Não sabe, 98 = Não respondeu, 99 = Não se aplica, 999999999 = Não se aplica (campos de quantidade)
+    _CODIGOS_SISTEMA = {97.0, 98.0, 99.0, 999999999.0}
+
     def __init__(self, data_path=None, ano: int = 2025, df=None, meta=None):
         """
         Inicializa o analisador de indivíduos CETIC
@@ -31,10 +35,13 @@ class AnalisadorIndividuosCETIC:
             # Uso direto com arquivo local (scripts standalone)
             print(f"⚠️ Carregando de arquivo local: {data_path}")
             try:
-                if data_path.endswith('.sav'):
+                if data_path.endswith('.parquet'):
+                    self.df = pd.read_parquet(data_path)
+                    self.meta = None
+                elif data_path.endswith('.sav'):
                     self.df, self.meta = pyreadstat.read_sav(data_path)
                 else:
-                    raise ValueError(f"Formato não suportado: {data_path}. Use arquivo .sav")
+                    raise ValueError(f"Formato não suportado: {data_path}. Use arquivo .sav ou .parquet")
                 print(f"✓ Base carregada com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
             except Exception as e:
                 print(f"❌ Erro ao carregar arquivo: {e}")
@@ -44,68 +51,82 @@ class AnalisadorIndividuosCETIC:
             raise ValueError(
                 "❌ Analisador requer dados.\n"
                 "Para aplicações Streamlit, use: get_analisador_individuos(ano)\n"
-                "Para scripts standalone, passe data_path com caminho do arquivo .sav"
+                "Para scripts standalone, passe data_path com caminho do arquivo .sav ou .parquet"
             )
+
+    def renomear_colunas_com_labels(self):
+        """
+        Renomeia as colunas do DataFrame substituindo os códigos pelas labels dos metadados.
+        """
+        rename_dict = {}
+
+        for attr_name in dir(MetadadosIndividuos):
+            if not attr_name.startswith('_'):
+                meta_attr = getattr(MetadadosIndividuos, attr_name, None)
+                if meta_attr and hasattr(meta_attr, '_label'):
+                    if attr_name in self.df.columns:
+                        rename_dict[attr_name] = meta_attr._label
+
+        self.df.rename(columns=rename_dict, inplace=True)
+        print(f"{len(rename_dict)} colunas renomeadas com suas labels.")
+        return self.df
 
     def filtrar_dados(self, *args, **kwargs):
         """
         Filtra os dados usando args (objetos de MetadadosIndividuos) ou kwargs.
+        Retorna uma cópia filtrada sem modificar o DataFrame original.
         """
-        if self.df.empty:
-            return self.df
+        df = self.df.copy()
+
+        if df.empty:
+            return df
 
         for arg in args:
             if hasattr(arg, 'column'):
                 col = arg.column
-                if col in self.df.columns:
-                    self.df = self.df[self.df[col] == arg]
+                if col in df.columns:
+                    df = df[df[col] == arg]
                 else:
                     print(f"Aviso: Coluna '{col}' não encontrada.")
             else:
                 print(f"Aviso: Argumento '{arg}' não possui informação de coluna.")
 
         for col, value in kwargs.items():
-            if col in self.df.columns:
+            if col in df.columns:
                 if isinstance(value, list):
-                    self.df = self.df[self.df[col].isin(value)]
+                    df = df[df[col].isin(value)]
                 else:
-                    self.df = self.df[self.df[col] == value]
+                    df = df[df[col] == value]
             else:
                 print(f"Aviso: Coluna '{col}' não encontrada.")
         
-        print(f"Filtro aplicado. Registros encontrados: {len(self.df)}")
-        return self.df
+        print(f"Filtro aplicado. Registros encontrados: {len(df)}")
+        return df
 
     def analisar_indicador(self, indicador, df_contexto=None):
+        """
+        Analisa um indicador específico.
+        Códigos de sistema (97=Não sabe, 98=Não respondeu, 99=Não se aplica,
+        999999999=Não se aplica) são excluídos do denominador para que os
+        percentuais reflitam apenas as respostas válidas.
+        """
         df = df_contexto if df_contexto is not None else self.df
         
         if df.empty:
             return None
 
-        # if isinstance(indicador, list):
-        #     # Para análise múltipla, filtrar 99.0 de cada indicador da lista
-        #     for ind in indicador:
-        #         if ind in df.columns:
-        #             df = df[df[ind] != 99.0]
-        # else:
-        #     # Para análise simples, filtrar 99.0 do indicador específico
-        #    if indicador in df.columns:
-        #         df = df[df[indicador] != 99.0]
-        #
-        # if df.empty:
-        #     print(f"Aviso: Todos os valores são 'Não se aplica' após filtragem.")
-        #     return None
-
         if isinstance(indicador, list):
-            # Análise múltipla (ex: múltiplos dispositivos)
+            # Análise múltipla: para cada indicador, exclui seus próprios códigos de sistema
             resumo = []
             for ind in indicador:
+                if ind not in df.columns:
+                    continue
                 meta_col = getattr(MetadadosIndividuos, ind, None)
                 label_col = getattr(meta_col, '_label', ind) if meta_col else ind
-                
-                # Considera apenas o valor 'Sim' (1.0) para comparação
-                sim_count = (df[ind] == 1.0).sum()
-                total = len(df)  # Total JÁ sem "Não se aplica"
+
+                df_valido = df[~df[ind].isin(self._CODIGOS_SISTEMA)]
+                sim_count = (df_valido[ind] == 1.0).sum()
+                total = len(df_valido)
                 percent = (sim_count / total) * 100 if total > 0 else 0
                 
                 resumo.append({
@@ -120,9 +141,10 @@ class AnalisadorIndividuosCETIC:
             print(f"Erro: Indicador '{indicador}' não encontrado.")
             return None
 
-        # Contagem de valores (já filtrado 99.0 acima)
-        counts = df[indicador].value_counts().sort_index()
-        total = len(df)  # Total JÁ sem "Não se aplica"
+        # Exclui códigos de sistema do denominador para percentuais corretos
+        df_valido = df[~df[indicador].isin(self._CODIGOS_SISTEMA)]
+        counts = df_valido[indicador].value_counts().sort_index()
+        total = len(df_valido)
 
         meta_col = getattr(MetadadosIndividuos, indicador, None)
         label_col = getattr(meta_col, '_label', indicador) if meta_col else indicador
@@ -130,10 +152,7 @@ class AnalisadorIndividuosCETIC:
         
         resumo = []
         for val, count in counts.items():
-            label = labels_valores.get(val, "Não categorizado")
-            # Pular "Não se aplica" se ainda aparecer (proteção adicional)
-            # if label.lower() == 'não se aplica':
-            #    continue
+            label = labels_valores.get(val, str(int(val)) if val == int(val) else str(val))
             percent = (count / total) * 100 if total > 0 else 0
             resumo.append({
                 'Descrição': label,
@@ -165,8 +184,8 @@ class AnalisadorIndividuosCETIC:
         """
         Analisa o indicador C1 (Indivíduos que já acessaram a Internet).
         """
-        self.filtrar_dados(*args, **kwargs)
-        res = self.analisar_indicador('C1')
+        df_filtrado = self.filtrar_dados(*args, **kwargs)
+        res = self.analisar_indicador('C1', df_contexto=df_filtrado)
         if res is not None:
             return res[['Descrição', 'Percentual']]
         return "Nenhum dado encontrado."
@@ -212,7 +231,7 @@ class AnalisadorIndividuosCETIC:
         for valor_agregador in sorted(df[campo_agregador].unique()):
             # Filtrar dados para este valor
             df_grupo = df[df[campo_agregador] == valor_agregador]
-            label_valor_agregador = map_agregador.get(valor_agregador, str(valor_agregador))
+            label_valor_agregador = map_agregador.get(valor_agregador, str(int(valor_agregador)) if valor_agregador == int(valor_agregador) else str(valor_agregador))
 
             # Analisar cada campo
             for campo in campos:
@@ -223,12 +242,13 @@ class AnalisadorIndividuosCETIC:
                 label_campo = getattr(meta_campo, '_label', campo) if meta_campo else campo
                 map_campo = getattr(meta_campo, '_map', {}) if meta_campo else {}
 
-                # Contar valores
-                contagens = df_grupo[campo].value_counts()
-                total_grupo = len(df_grupo)
+                # Contar valores excluindo códigos de sistema
+                df_grupo_valido = df_grupo[~df_grupo[campo].isin(self._CODIGOS_SISTEMA)]
+                contagens = df_grupo_valido[campo].value_counts()
+                total_grupo = len(df_grupo_valido)
 
                 for valor_campo, count in contagens.items():
-                    label_valor_campo = map_campo.get(valor_campo, str(valor_campo))
+                    label_valor_campo = map_campo.get(valor_campo, str(int(valor_campo)) if valor_campo == int(valor_campo) else str(valor_campo))
                     percentual = (count / total_grupo * 100) if total_grupo > 0 else 0
 
                     resultado = {
