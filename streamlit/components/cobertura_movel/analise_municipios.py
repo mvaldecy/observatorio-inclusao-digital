@@ -296,7 +296,7 @@ def _renderizar_grafico_distribuicao(distribuicao: dict, selected_uf: str):
         y=faixas_ordenadas,
         x=valores,
         orientation='h',
-        marker=dict(color=cores, line=dict(color='rgba(255,255,255,0.2)', width=1)),
+        marker=dict(color=cores, line=dict(color='rgba(0,0,0,0.08)', width=1)),
         text=[f"{v} ({p:.1f}%)" for v, p in zip(valores, percentuais)],
         textposition='auto',
         hovertemplate='<b>%{y}</b><br>Municípios: %{x}<br>Percentual: %{text}<extra></extra>'

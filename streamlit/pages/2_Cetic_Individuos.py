@@ -20,7 +20,9 @@ st.set_page_config(page_title="Cetic Indivíduos", layout="wide")
 
 # Libera memória de outros datasets ao abrir esta página
 from utils.memory_manager import set_active_dataset
+from components.theme import apply_global_styles
 set_active_dataset("cetic_individuos")
+apply_global_styles()
 
 # Configurações de Ano e Cache no Sidebar (antes dos filtros)
 st.sidebar.title("⚙️ Configurações")
