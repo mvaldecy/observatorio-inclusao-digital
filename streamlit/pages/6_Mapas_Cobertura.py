@@ -36,6 +36,10 @@ st.set_page_config(
     page_icon="🗺️"
 )
 
+# Libera memória de outros datasets ao abrir esta página
+from utils.memory_manager import set_active_dataset
+set_active_dataset("anatel_cobertura_movel")
+
 # Título da página
 st.title("🗺️ Mapas de Cobertura Móvel - Brasil")
 st.markdown("Visualização geográfica da cobertura 4G e 5G por estado")

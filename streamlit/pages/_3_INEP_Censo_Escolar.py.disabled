@@ -24,6 +24,10 @@ from inep import get_label, get_valores, METADADOS_INEP
 
 st.set_page_config(page_title="INEP - Censo Escolar", layout="wide", page_icon="🏫")
 
+# Libera memória de outros datasets ao abrir esta página
+from utils.memory_manager import set_active_dataset
+set_active_dataset("inep")
+
 # ============================================================================
 # SIDEBAR - CONFIGURAÇÕES
 # ============================================================================

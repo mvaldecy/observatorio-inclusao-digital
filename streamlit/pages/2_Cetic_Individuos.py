@@ -18,90 +18,9 @@ from components.header import render_header
 
 st.set_page_config(page_title="Cetic Indivíduos", layout="wide")
 
-# CSS customizado para remover bordas laranja/vermelhas e melhorar estética
-st.markdown("""
-<style>
-    /* Remove todas as bordas laranja/vermelhas de labels, headers e títulos */
-    [data-testid="stSidebar"] h3,
-    [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h1,
-    [data-testid="stSidebar"] label,
-    label[data-baseweb="label"],
-    div[data-baseweb="label"] {
-        border: none !important;
-        outline: none !important;
-    }
-    
-    /* Remove bordas em elementos com classe de label */
-    .stSelectbox label,
-    .stMultiSelect label,
-    div[role="option"] {
-        border: none !important;
-        outline: none !important;
-    }
-    
-    /* Remove borda laranja de inputs e selects */
-    [data-baseweb="input"],
-    [data-baseweb="select"],
-    [data-baseweb="combobox"],
-    div[role="listbox"],
-    div[data-baseweb="select"] {
-        border: 1px solid #ccc !important;
-        border-radius: 4px !important;
-        outline: none !important;
-    }
-    
-    /* Remove overlay/borda laranja no focus */
-    [data-baseweb="input"]:focus,
-    [data-baseweb="select"]:focus,
-    [data-baseweb="combobox"]:focus,
-    input:focus {
-        border-color: #0d58ca !important;
-        box-shadow: 0 0 0 1px #0d58ca !important;
-        outline: none !important;
-    }
-    
-    /* Remove bordas de modal/dropdown */
-    div[style*="background"] > div[role="listbox"] {
-        border: 1px solid #ccc !important;
-        outline: none !important;
-    }
-    
-    /* Melhora multiselect appearance */
-    div[data-testid="stMultiSelect"] span {
-        color: #262730 !important;
-        border: none !important;
-    }
-    
-    /* Melhora elementos de input */
-    input {
-        border: 1px solid #ccc !important;
-        border-radius: 4px !important;
-        outline: none !important;
-    }
-    
-    /* Remove qualquer borda vermelha de erro */
-    input:invalid {
-        border-color: #ccc !important;
-        box-shadow: none !important;
-        outline: none !important;
-    }
-    
-    /* Remove bordas em elementos do sidebar */
-    [data-testid="stSidebar"] div[data-baseweb] {
-        border: none !important;
-    }
-    
-    /* Remove cor de highlight laranja */
-    div[style*="rgb(255, 159, 64)"],
-    div[style*="#FF9F40"],
-    div[style*="#ffb3b3"],
-    div[style*="orange"] {
-        border: none !important;
-        box-shadow: none !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Libera memória de outros datasets ao abrir esta página
+from utils.memory_manager import set_active_dataset
+set_active_dataset("cetic_individuos")
 
 # Configurações de Ano e Cache no Sidebar (antes dos filtros)
 st.sidebar.title("⚙️ Configurações")
@@ -121,14 +40,14 @@ ano_selecionado = st.sidebar.selectbox(
 col_btn1, col_btn2 = st.sidebar.columns(2)
 
 with col_btn1:
-    if st.button("🔄 Atualizar", help="Baixar nova versão dos dados", width='stretch'):
+    if st.button("🔄 Atualizar", help="Baixar nova versão dos dados", use_container_width=True):
         st.cache_data.clear()
         st.cache_resource.clear()
         loader.carregar_dados(ano_selecionado, 'individuos', force_download=True)
         st.rerun()
 
 with col_btn2:
-    if st.button("🗑️ Limpar Cache", help="Remover dados em cache", width='stretch'):
+    if st.button("🗑️ Limpar Cache", help="Remover dados em cache", use_container_width=True):
         loader.limpar_cache(ano_selecionado)
         st.cache_data.clear()
         st.cache_resource.clear()
@@ -479,7 +398,7 @@ if len(df_filtrado) > 0:
                 st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
 
                 with st.expander("📋 Ver Dados Completos"):
-                    st.dataframe(res_brasil, width='stretch')
+                    st.dataframe(res_brasil, use_container_width=True)
             else:
                 st.warning("Sem dados")
 
@@ -515,7 +434,7 @@ if len(df_filtrado) > 0:
                 st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
 
                 with st.expander("📋 Ver Dados Completos"):
-                    st.dataframe(res_nordeste, width='stretch')
+                    st.dataframe(res_nordeste, use_container_width=True)
             else:
                 st.warning("Sem dados")
 
@@ -553,7 +472,7 @@ if len(df_filtrado) > 0:
                     st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
 
                     with st.expander("📋 Ver Dados Completos"):
-                        st.dataframe(res_piaui, width='stretch')
+                        st.dataframe(res_piaui, use_container_width=True)
                 else:
                     st.warning("Sem dados")
 
@@ -598,7 +517,7 @@ if len(df_filtrado) > 0:
             df_pivot = df_comparativo.pivot(index='Categoria', columns='Região', values='Percentual')
 
             # Tabela comparativa (sempre visível)
-            st.dataframe(df_pivot, width='stretch')
+            st.dataframe(df_pivot, use_container_width=True)
 
             # Exportar comparativo
             st.markdown("---")
@@ -812,7 +731,7 @@ if len(df_filtrado) > 0:
                     aggfunc='first'
                 )
 
-                st.dataframe(df_pivot_tabela, width='stretch')
+                st.dataframe(df_pivot_tabela, use_container_width=True)
 
                 # Botão de download
                 st.markdown("---")
@@ -884,7 +803,7 @@ if len(df_filtrado) > 0:
 
             # Tabela formatada
             st.write("### 📊 Tabela Detalhada")
-            st.dataframe(res, width='stretch', height=300)
+            st.dataframe(res, use_container_width=True, height=300)
 
         with tab2:
             # Gráficos melhorados
@@ -933,7 +852,7 @@ if len(df_filtrado) > 0:
                 """)
 
             st.write("### 📋 Pré-visualização dos Dados")
-            st.dataframe(res, width='stretch')
+            st.dataframe(res, use_container_width=True)
 else:
     st.warning("⚠️ Nenhum dado encontrado para os filtros selecionados.")
     st.info("💡 **Dica:** Tente remover alguns filtros ou selecionar uma combinação diferente.")
