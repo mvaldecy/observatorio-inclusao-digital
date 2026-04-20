@@ -1,5 +1,4 @@
 import pandas as pd
-import pyreadstat
 try:
     from cetic.individuos.metadados_individuos import MetadadosIndividuos
 except ImportError:
@@ -11,10 +10,10 @@ class AnalisadorIndividuosCETIC:
         Inicializa o analisador de indivíduos CETIC
 
         Args:
-            data_path: Caminho para arquivo local (opcional, somente para uso direto)
+            data_path: Caminho para arquivo local (.parquet recomendado; .sav ainda suportado)
             ano: Ano da pesquisa (default: 2025)
             df: DataFrame já carregado (obrigatório quando usado via data_loader)
-            meta: Metadados já carregados (opcional)
+            meta: Metadados já carregados (opcional, normalmente None com cache Parquet)
 
         Nota:
             Para uso em aplicações Streamlit, utilize get_analisador_individuos(ano)
@@ -31,10 +30,15 @@ class AnalisadorIndividuosCETIC:
             # Uso direto com arquivo local (scripts standalone)
             print(f"⚠️ Carregando de arquivo local: {data_path}")
             try:
-                if data_path.endswith('.sav'):
+                if data_path.endswith('.parquet'):
+                    self.df = pd.read_parquet(data_path)
+                    self.meta = None
+                elif data_path.endswith('.sav'):
+                    # Import tardio: pyreadstat só é necessário para .sav
+                    import pyreadstat
                     self.df, self.meta = pyreadstat.read_sav(data_path)
                 else:
-                    raise ValueError(f"Formato não suportado: {data_path}. Use arquivo .sav")
+                    raise ValueError(f"Formato não suportado: {data_path}. Use .parquet ou .sav")
                 print(f"✓ Base carregada com {len(self.df):,} registros e {len(self.df.columns)} colunas.")
             except Exception as e:
                 print(f"❌ Erro ao carregar arquivo: {e}")
@@ -44,7 +48,7 @@ class AnalisadorIndividuosCETIC:
             raise ValueError(
                 "❌ Analisador requer dados.\n"
                 "Para aplicações Streamlit, use: get_analisador_individuos(ano)\n"
-                "Para scripts standalone, passe data_path com caminho do arquivo .sav"
+                "Para scripts standalone, passe data_path com caminho do arquivo .parquet ou .sav"
             )
 
     def filtrar_dados(self, *args, **kwargs):

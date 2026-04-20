@@ -1,5 +1,4 @@
 import pandas as pd
-import pyreadstat
 try:
     from cetic.domicilios.metadados import Metadados
 except ImportError:
@@ -11,10 +10,10 @@ class AnalisadorDomiciliosCETIC:
         Inicializa o analisador de domicílios CETIC
 
         Args:
-            data_path: Caminho para arquivo local (opcional, somente para uso direto)
+            data_path: Caminho para arquivo local (.parquet recomendado; .sav ainda suportado)
             ano: Ano da pesquisa (default: 2025)
             df: DataFrame já carregado (obrigatório quando usado via data_loader)
-            meta: Metadados já carregados (opcional)
+            meta: Metadados já carregados (opcional, normalmente None com cache Parquet)
 
         Nota:
             Para uso em aplicações Streamlit, utilize get_analisador_domicilios(ano)
@@ -35,6 +34,8 @@ class AnalisadorDomiciliosCETIC:
                     self.df = pd.read_parquet(data_path)
                     self.meta = None
                 elif data_path.endswith('.sav'):
+                    # Import tardio: pyreadstat só é necessário para .sav
+                    import pyreadstat
                     self.df, self.meta = pyreadstat.read_sav(data_path)
                 else:
                     raise ValueError(f"Formato não suportado: {data_path}")
@@ -47,7 +48,7 @@ class AnalisadorDomiciliosCETIC:
             raise ValueError(
                 "❌ Analisador requer dados.\n"
                 "Para aplicações Streamlit, use: get_analisador_domicilios(ano)\n"
-                "Para scripts standalone, passe data_path com caminho do arquivo .sav ou .parquet"
+                "Para scripts standalone, passe data_path com caminho do arquivo .parquet ou .sav"
             )
 
     def renomear_colunas_com_labels(self):

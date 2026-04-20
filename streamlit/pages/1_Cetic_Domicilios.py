@@ -20,6 +20,10 @@ from components.comparativo_geografico import ComparativoGeografico
 
 st.set_page_config(page_title="Cetic Domicílios", layout="wide")
 
+# Libera memória de outros datasets ao abrir esta página
+from utils.memory_manager import set_active_dataset
+set_active_dataset("cetic_domicilios")
+
 # Configurações de Ano e Cache no Sidebar (antes dos filtros)
 st.sidebar.title("⚙️ Configurações")
 

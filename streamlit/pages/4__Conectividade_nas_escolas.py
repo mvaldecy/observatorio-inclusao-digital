@@ -68,6 +68,10 @@ def _uf_equals(series: pd.Series, values: set[str]) -> pd.Series:
 # Configuração da página
 st.set_page_config(page_title="Dados Anatel", layout="wide", page_icon="�")
 
+# Libera memória de outros datasets ao abrir esta página
+from utils.memory_manager import set_active_dataset
+set_active_dataset("anatel_conectividade")
+
 # Título da página
 st.markdown("# 📡 Anatel - Conectividade nas Escolas")
 

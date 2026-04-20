@@ -500,30 +500,118 @@ class HTTPDataLoader:
     # MÉTODOS ESPECÍFICOS DO CETIC
     # =============================================================================
 
-    def _carregar_cetic(self, ano: any, tipo: str, force_download: bool = False) -> Optional[Tuple[pd.DataFrame, any]]:
+    def _sav_to_parquet(self, sav_path: Path, parquet_path: Path) -> bool:
         """
-        Carrega dados do CETIC (arquivos SPSS .sav)
+        Converte um arquivo SPSS (.sav) para Parquet aplicando limpeza e
+        otimização de colunas. Não remove o .sav de origem.
 
         Args:
-            ano: Ano dos dados
-            tipo: Tipo dos dados (ex: 'domicilios', 'individuos')
-            force_download: Forçar download mesmo se existir cache
+            sav_path: arquivo .sav de origem
+            parquet_path: destino .parquet
 
         Returns:
-            Tupla (DataFrame, metadados) ou None se erro
+            True em caso de sucesso.
         """
-        cache_path = self._get_cache_path(ano, tipo)
-        url = self.urls[ano][tipo]
+        try:
+            df, _meta = pyreadstat.read_sav(str(sav_path))
+            if df is None or df.empty:
+                st.error(f"❌ Arquivo SAV está vazio: {sav_path.name}")
+                return False
 
-        if not cache_path.exists() or force_download:
-            if not self._download_file(url, cache_path):
-                return None, None
+            df = self._limpar_colunas(df)
+            df = self._preparar_dataframe(df, aplicar_categorizacao=True)
+
+            parquet_path.parent.mkdir(parents=True, exist_ok=True)
+            df.to_parquet(parquet_path, compression='snappy', engine='pyarrow')
+            return True
+        except Exception as e:
+            st.error(f"❌ Erro ao converter SAV para Parquet ({sav_path.name}): {str(e)}")
+            return False
+
+    def _download_and_convert_sav_to_parquet(self, url: str, ano: any, tipo: str) -> bool:
+        """
+        Baixa um arquivo SPSS (.sav) do CETIC e converte para Parquet.
+        Guarda o arquivo em cache/cetic/{ano}/{tipo}.parquet e remove o .sav temporário.
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        destino_dir = self.cache_dir / self.fonte / str(ano)
+        destino_dir.mkdir(parents=True, exist_ok=True)
+        parquet_path = destino_dir / f"{tipo}.parquet"
+
+        temp_dir = self.cache_dir / self.fonte / 'temp'
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_sav = temp_dir / f'{tipo}.sav'
 
         try:
-            df, meta = pyreadstat.read_sav(str(cache_path))
-            return df, meta
+            if not self._download_file(url, temp_sav):
+                return False
+            return self._sav_to_parquet(temp_sav, parquet_path)
+        finally:
+            if temp_dir.exists():
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
+
+    def _carregar_cetic(self, ano: any, tipo: str, force_download: bool = False) -> Optional[Tuple[pd.DataFrame, any]]:
+        """
+        Carrega dados do CETIC usando cache Parquet.
+
+        Estratégia:
+          1. Se existir cache/cetic/{ano}/{tipo}.parquet → lê direto.
+          2. Se existir legado cache/cetic/{ano}/{tipo}.sav → converte para
+             Parquet uma vez e remove o .sav.
+          3. Caso contrário, baixa o .sav da URL e converte para Parquet.
+
+        Retorna (DataFrame, None) — os metadados SPSS não são preservados
+        pois os módulos `metadados*.py` estáticos já fornecem os labels.
+        """
+        ano_dir = self.cache_dir / self.fonte / str(ano)
+        ano_dir.mkdir(parents=True, exist_ok=True)
+        parquet_path = ano_dir / f"{tipo}.parquet"
+        legacy_sav = ano_dir / f"{tipo}.sav"
+
+        # 1) Cache parquet disponível
+        if parquet_path.exists() and not force_download:
+            try:
+                df = pd.read_parquet(str(parquet_path))
+                return df, None
+            except Exception as e:
+                st.error(f"❌ Erro ao ler parquet CETIC ({parquet_path.name}): {str(e)}")
+                return None, None
+
+        # 2) Migração automática de .sav legado → parquet
+        if legacy_sav.exists() and not force_download:
+            if self._sav_to_parquet(legacy_sav, parquet_path):
+                try:
+                    legacy_sav.unlink()
+                except Exception:
+                    pass
+                try:
+                    df = pd.read_parquet(str(parquet_path))
+                    return df, None
+                except Exception as e:
+                    st.error(f"❌ Erro ao ler parquet recém-convertido: {str(e)}")
+                    return None, None
+
+        # 3) Download + conversão
+        try:
+            url = self.urls[ano][tipo]
+        except KeyError:
+            st.error(f"❌ URL não encontrada para CETIC/{tipo} ({ano})")
+            return None, None
+
+        if not self._download_and_convert_sav_to_parquet(url, ano, tipo):
+            return None, None
+
+        try:
+            df = pd.read_parquet(str(parquet_path))
+            return df, None
         except Exception as e:
-            st.error(f"❌ Erro ao processar arquivo SAV {cache_path.name}: {str(e)}")
+            st.error(f"❌ Erro ao ler parquet CETIC após download: {str(e)}")
             return None, None
 
     # =============================================================================
