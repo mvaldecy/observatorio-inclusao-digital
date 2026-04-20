@@ -30,6 +30,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+from components.theme import apply_global_styles
+apply_global_styles()
+
 criar_header(
     titulo="♿ PCD e TEA - Municípios do Piauí (2022)",
     descricao="""

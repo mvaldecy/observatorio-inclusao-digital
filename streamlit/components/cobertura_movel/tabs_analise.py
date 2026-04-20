@@ -157,22 +157,22 @@ def _renderizar_histograma(df_ranking: pd.DataFrame, selected_uf: str):
         x=bin_centers,
         y=hist_values,
         width=(bin_edges[1] - bin_edges[0]) * 0.9,
-        marker=dict(color=colors, line=dict(color='rgba(255,255,255,0.3)', width=1)),
+        marker=dict(color=colors, line=dict(color='rgba(0,0,0,0.08)', width=1)),
         hovertemplate='Cobertura: %{x:.1f}%<br>Municípios: %{y}<extra></extra>',
         name='Municípios'
     ))
     
     # Linhas de referência
     fig_hist.add_vline(
-        x=media_hist, line_dash="dash", line_color="#fbbf24", line_width=3,
+        x=media_hist, line_dash="dash", line_color="#92400E", line_width=3,
         annotation_text=f"Média: {media_hist:.1f}%", annotation_position="top",
-        annotation_font_size=12, annotation_font_color="#fbbf24"
+        annotation_font_size=12, annotation_font_color="#92400E"
     )
     
     fig_hist.add_vline(
-        x=mediana_hist, line_dash="dot", line_color="#8b5cf6", line_width=3,
+        x=mediana_hist, line_dash="dot", line_color="#5B21B6", line_width=3,
         annotation_text=f"Mediana: {mediana_hist:.1f}%", annotation_position="bottom",
-        annotation_font_size=12, annotation_font_color="#8b5cf6"
+        annotation_font_size=12, annotation_font_color="#5B21B6"
     )
     
     # Áreas de referência
@@ -242,11 +242,14 @@ def _renderizar_boxplot(df_ranking: pd.DataFrame, selected_uf: str):
     # Anotações dos quartis
     annotations = [
         dict(x=0.15, y=q1, text=f'Q1: {q1:.1f}%<br>(25% abaixo)', showarrow=True, arrowhead=2,
-             ax=80, ay=0, font=dict(size=11, color='#f59e0b'), bgcolor='rgba(0,0,0,0.7)', borderpad=4),
+             ax=80, ay=0, font=dict(size=11, color='#92400E'), bgcolor='rgba(255,255,255,0.92)',
+             bordercolor='#E2E8F0', borderwidth=1, borderpad=4),
         dict(x=0.15, y=q2, text=f'Mediana: {q2:.1f}%<br>(50% acima/abaixo)', showarrow=True, arrowhead=2,
-             ax=80, ay=0, font=dict(size=11, color='#8b5cf6'), bgcolor='rgba(0,0,0,0.7)', borderpad=4),
+             ax=80, ay=0, font=dict(size=11, color='#5B21B6'), bgcolor='rgba(255,255,255,0.92)',
+             bordercolor='#E2E8F0', borderwidth=1, borderpad=4),
         dict(x=0.15, y=q3, text=f'Q3: {q3:.1f}%<br>(75% abaixo)', showarrow=True, arrowhead=2,
-             ax=80, ay=0, font=dict(size=11, color='#10b981'), bgcolor='rgba(0,0,0,0.7)', borderpad=4)
+             ax=80, ay=0, font=dict(size=11, color='#065F46'), bgcolor='rgba(255,255,255,0.92)',
+             bordercolor='#E2E8F0', borderwidth=1, borderpad=4)
     ]
     
     fig_box.update_layout(

@@ -34,38 +34,12 @@ st.set_page_config(page_title="Cobertura Móvel - ANATEL", layout="wide", page_i
 
 # Libera memória de outros datasets ao abrir esta página
 from utils.memory_manager import set_active_dataset
+from components.theme import apply_global_styles
 set_active_dataset("anatel_cobertura_movel")
+apply_global_styles()
 
 # Título da página
 st.markdown("# 📡 Anatel - Cobertura Móvel")
-
-# CSS customizado para dark theme (mesmo padrão)
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 2rem;
-    }
-    .metric-card {
-        background-color: #1e1e1e;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border: 1px solid #333;
-    }
-    .tag {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        margin: 0.25rem;
-        border-radius: 0.25rem;
-        font-size: 0.85rem;
-    }
-    .tag-blue { background-color: #1e40af; color: white; }
-    .tag-green { background-color: #166534; color: white; }
-    .tag-purple { background-color: #6b21a8; color: white; }
-</style>
-""", unsafe_allow_html=True)
-
 st.markdown("---")
 
 # Funções auxiliares (mesmo padrão)
@@ -828,7 +802,7 @@ if selected_uf and info['coluna_municipio']:
             orientation='h',
             marker=dict(
                 color=cores,
-                line=dict(color='rgba(255,255,255,0.2)', width=1)
+                line=dict(color='rgba(0,0,0,0.08)', width=1)
             ),
             text=[f"{v} ({p:.1f}%)" for v, p in zip(valores_ordenados, percentuais_ordenados)],
             textposition='auto',
@@ -1164,7 +1138,7 @@ if selected_uf and info['coluna_municipio']:
                 width=(bin_edges[1] - bin_edges[0]) * 0.9,
                 marker=dict(
                     color=colors,
-                    line=dict(color='rgba(255,255,255,0.3)', width=1)
+                    line=dict(color='rgba(0,0,0,0.08)', width=1)
                 ),
                 hovertemplate='Cobertura: %{x:.1f}%<br>Municípios: %{y}<extra></extra>',
                 name='Municípios'
@@ -1174,24 +1148,24 @@ if selected_uf and info['coluna_municipio']:
             fig_hist.add_vline(
                 x=media_hist,
                 line_dash="dash",
-                line_color="#fbbf24",
+                line_color="#92400E",
                 line_width=3,
                 annotation_text=f"Média: {media_hist:.1f}%",
                 annotation_position="top",
                 annotation_font_size=12,
-                annotation_font_color="#fbbf24"
+                annotation_font_color="#92400E"
             )
             
             # Adiciona linha vertical para a MEDIANA
             fig_hist.add_vline(
                 x=mediana_hist,
                 line_dash="dot",
-                line_color="#8b5cf6",
+                line_color="#5B21B6",
                 line_width=3,
                 annotation_text=f"Mediana: {mediana_hist:.1f}%",
                 annotation_position="bottom",
                 annotation_font_size=12,
-                annotation_font_color="#8b5cf6"
+                annotation_font_color="#5B21B6"
             )
             
             # Adiciona áreas de referência
@@ -1296,30 +1270,21 @@ if selected_uf and info['coluna_municipio']:
                     showarrow=True,
                     arrowhead=2,
                     ax=80, ay=0,
-                    font=dict(size=11, color='#f59e0b'),
-                    bgcolor='rgba(0,0,0,0.7)',
-                    borderpad=4
-                ),
+                    font=dict(size=11, color='#92400E'), bgcolor='rgba(255,255,255,0.92)', bordercolor='#E2E8F0', borderwidth=1, borderpad=4),
                 dict(
                     x=0.15, y=q2,
                     text=f'Mediana: {q2:.1f}%<br>(50% acima/abaixo)',
                     showarrow=True,
                     arrowhead=2,
                     ax=80, ay=0,
-                    font=dict(size=11, color='#8b5cf6'),
-                    bgcolor='rgba(0,0,0,0.7)',
-                    borderpad=4
-                ),
+                    font=dict(size=11, color='#5B21B6'), bgcolor='rgba(255,255,255,0.92)', bordercolor='#E2E8F0', borderwidth=1, borderpad=4),
                 dict(
                     x=0.15, y=q3,
                     text=f'Q3: {q3:.1f}%<br>(75% abaixo)',
                     showarrow=True,
                     arrowhead=2,
                     ax=80, ay=0,
-                    font=dict(size=11, color='#10b981'),
-                    bgcolor='rgba(0,0,0,0.7)',
-                    borderpad=4
-                )
+                    font=dict(size=11, color='#065F46'), bgcolor='rgba(255,255,255,0.92)', bordercolor='#E2E8F0', borderwidth=1, borderpad=4)
             ]
             
             fig_box.update_layout(

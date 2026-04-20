@@ -38,7 +38,9 @@ st.set_page_config(
 
 # Libera memória de outros datasets ao abrir esta página
 from utils.memory_manager import set_active_dataset
+from components.theme import apply_global_styles
 set_active_dataset("anatel_cobertura_movel")
+apply_global_styles()
 
 # Título da página
 st.title("🗺️ Mapas de Cobertura Móvel - Brasil")

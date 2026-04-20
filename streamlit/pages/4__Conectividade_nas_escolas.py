@@ -70,7 +70,9 @@ st.set_page_config(page_title="Dados Anatel", layout="wide", page_icon="�")
 
 # Libera memória de outros datasets ao abrir esta página
 from utils.memory_manager import set_active_dataset
+from components.theme import apply_global_styles
 set_active_dataset("anatel_conectividade")
+apply_global_styles()
 
 # Título da página
 st.markdown("# 📡 Anatel - Conectividade nas Escolas")
@@ -90,33 +92,6 @@ Este dashboard apresenta dados da **ANATEL (Agência Nacional de Telecomunicaç�
 
 > 💡 **Dica:** Use os filtros na barra lateral e no centro da página para explorar dados específicos.
 """)
-
-# CSS customizado para dark theme
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 2rem;
-    }
-    .metric-card {
-        background-color: #1e1e1e;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border: 1px solid #333;
-    }
-    .tag {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        margin: 0.25rem;
-        border-radius: 0.25rem;
-        font-size: 0.85rem;
-    }
-    .tag-blue { background-color: #1e40af; color: white; }
-    .tag-green { background-color: #166534; color: white; }
-    .tag-purple { background-color: #6b21a8; color: white; }
-</style>
-""", unsafe_allow_html=True)
 
 st.markdown("---")
 
