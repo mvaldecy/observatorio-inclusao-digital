@@ -1,16 +1,21 @@
-[theme]
-primaryColor = "#1f77b4"
-backgroundColor = "#0e1117"
-secondaryBackgroundColor = "#262730"
-textColor = "#fafafa"
-font = "sans serif"
-
 [server]
+# Aumenta o limite de upload e mensagem para suportar datasets grandes
+maxUploadSize = 500
+maxMessageSize = 500
+# Desativa o watcher de arquivos para reduzir uso de memória no servidor
+fileWatcherType = "none"
+# Número de workers do servidor
 headless = true
-port = 8501
-enableCORS = true
-enableXsrfProtection = true
 
 [browser]
+# Desabilita coleta de estatísticas de uso
 gatherUsageStats = false
 
+[runner]
+# Desativa a "mágica" de importação automática para acelerar inicialização
+magicEnabled = false
+
+[client]
+# Desativa o spinner de loading padrão para evitar timeout aparente
+showErrorDetails = true
+toolbarMode = "minimal"

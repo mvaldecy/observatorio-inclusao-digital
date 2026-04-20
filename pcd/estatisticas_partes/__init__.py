@@ -1,0 +1,4 @@
+from pcd.estatisticas_partes.acesso_barreiras import EstatisticasAcessoBarreirasMixin
+from pcd.estatisticas_partes.perfil_comparacoes import EstatisticasPerfilComparacoesMixin
+
+__all__ = ['EstatisticasAcessoBarreirasMixin', 'EstatisticasPerfilComparacoesMixin']

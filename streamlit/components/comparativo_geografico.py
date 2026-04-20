@@ -147,7 +147,7 @@ class ComparativoGeografico:
             st.bar_chart(chart_data, x="Descrição", y="Percentual_Num", height=300)
 
             with st.expander("📋 Ver Dados"):
-                st.dataframe(resultado, use_container_width=True)
+                st.dataframe(resultado, width='stretch')
         else:
             st.warning("⚠️ Sem dados disponíveis")
 
@@ -189,7 +189,7 @@ class ComparativoGeografico:
             # Criar pivot para visualização
             df_pivot = df_comparativo.pivot(index='Categoria', columns='Região', values='Percentual')
 
-            st.dataframe(df_pivot.style.format("{:.2f}%"), use_container_width=True)
+            st.dataframe(df_pivot.style.format("{:.2f}%"), width='stretch')
 
             # Gráfico comparativo
             st.bar_chart(df_pivot, height=400)
