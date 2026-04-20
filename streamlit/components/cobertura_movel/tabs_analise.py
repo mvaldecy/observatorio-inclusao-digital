@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
+from components.theme import ANOTACAO_PADRAO
+
 
 def renderizar_tab_ranking(df_ranking: pd.DataFrame, selected_uf: str):
     """
@@ -242,14 +244,11 @@ def _renderizar_boxplot(df_ranking: pd.DataFrame, selected_uf: str):
     # Anotações dos quartis
     annotations = [
         dict(x=0.15, y=q1, text=f'Q1: {q1:.1f}%<br>(25% abaixo)', showarrow=True, arrowhead=2,
-             ax=80, ay=0, font=dict(size=11, color='#92400E'), bgcolor='rgba(255,255,255,0.92)',
-             bordercolor='#E2E8F0', borderwidth=1, borderpad=4),
+             ax=80, ay=0, font=dict(size=11, color='#92400E'), **ANOTACAO_PADRAO),
         dict(x=0.15, y=q2, text=f'Mediana: {q2:.1f}%<br>(50% acima/abaixo)', showarrow=True, arrowhead=2,
-             ax=80, ay=0, font=dict(size=11, color='#5B21B6'), bgcolor='rgba(255,255,255,0.92)',
-             bordercolor='#E2E8F0', borderwidth=1, borderpad=4),
+             ax=80, ay=0, font=dict(size=11, color='#5B21B6'), **ANOTACAO_PADRAO),
         dict(x=0.15, y=q3, text=f'Q3: {q3:.1f}%<br>(75% abaixo)', showarrow=True, arrowhead=2,
-             ax=80, ay=0, font=dict(size=11, color='#065F46'), bgcolor='rgba(255,255,255,0.92)',
-             bordercolor='#E2E8F0', borderwidth=1, borderpad=4)
+             ax=80, ay=0, font=dict(size=11, color='#065F46'), **ANOTACAO_PADRAO)
     ]
     
     fig_box.update_layout(

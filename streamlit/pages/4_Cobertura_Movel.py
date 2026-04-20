@@ -34,7 +34,7 @@ st.set_page_config(page_title="Cobertura Móvel - ANATEL", layout="wide", page_i
 
 # Libera memória de outros datasets ao abrir esta página
 from utils.memory_manager import set_active_dataset
-from components.theme import apply_global_styles
+from components.theme import apply_global_styles, ANOTACAO_PADRAO
 set_active_dataset("anatel_cobertura_movel")
 apply_global_styles()
 
@@ -1264,27 +1264,15 @@ if selected_uf and info['coluna_municipio']:
             
             # Adiciona anotações para os quartis
             annotations = [
-                dict(
-                    x=0.15, y=q1,
-                    text=f'Q1: {q1:.1f}%<br>(25% abaixo)',
-                    showarrow=True,
-                    arrowhead=2,
-                    ax=80, ay=0,
-                    font=dict(size=11, color='#92400E'), bgcolor='rgba(255,255,255,0.92)', bordercolor='#E2E8F0', borderwidth=1, borderpad=4),
-                dict(
-                    x=0.15, y=q2,
-                    text=f'Mediana: {q2:.1f}%<br>(50% acima/abaixo)',
-                    showarrow=True,
-                    arrowhead=2,
-                    ax=80, ay=0,
-                    font=dict(size=11, color='#5B21B6'), bgcolor='rgba(255,255,255,0.92)', bordercolor='#E2E8F0', borderwidth=1, borderpad=4),
-                dict(
-                    x=0.15, y=q3,
-                    text=f'Q3: {q3:.1f}%<br>(75% abaixo)',
-                    showarrow=True,
-                    arrowhead=2,
-                    ax=80, ay=0,
-                    font=dict(size=11, color='#065F46'), bgcolor='rgba(255,255,255,0.92)', bordercolor='#E2E8F0', borderwidth=1, borderpad=4)
+                dict(x=0.15, y=q1, text=f'Q1: {q1:.1f}%<br>(25% abaixo)',
+                     showarrow=True, arrowhead=2, ax=80, ay=0,
+                     font=dict(size=11, color='#92400E'), **ANOTACAO_PADRAO),
+                dict(x=0.15, y=q2, text=f'Mediana: {q2:.1f}%<br>(50% acima/abaixo)',
+                     showarrow=True, arrowhead=2, ax=80, ay=0,
+                     font=dict(size=11, color='#5B21B6'), **ANOTACAO_PADRAO),
+                dict(x=0.15, y=q3, text=f'Q3: {q3:.1f}%<br>(75% abaixo)',
+                     showarrow=True, arrowhead=2, ax=80, ay=0,
+                     font=dict(size=11, color='#065F46'), **ANOTACAO_PADRAO),
             ]
             
             fig_box.update_layout(

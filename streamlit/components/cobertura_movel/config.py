@@ -2,13 +2,6 @@
 Configurações e constantes para a página de Cobertura Móvel
 """
 import streamlit as st
-import sys
-import os
-
-# Garante que components/ está no path para importar theme
-_comp_dir = os.path.dirname(os.path.dirname(__file__))
-if _comp_dir not in sys.path:
-    sys.path.insert(0, _comp_dir)
 
 from components.theme import apply_global_styles
 
